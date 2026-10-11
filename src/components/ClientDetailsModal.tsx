@@ -6,15 +6,15 @@
 import React, { useState } from 'react';
 import { Client, AttachedFile } from '../types';
 import { DocumentType } from './DocumentViewerModal';
-import { X, Phone, Mail, Building2, FileText, Clipboard, Check, DollarSign, AlertCircle, Edit, Download, Eye, Snowflake, Thermometer, ShieldAlert, FileCheck, Truck, Printer, Clock, Banknote, CreditCard } from 'lucide-react';
+import { X, Phone, Mail, Building2, Clipboard, Check, DollarSign, AlertCircle, Edit, Banknote, CreditCard, Wrench, Package, Printer, FileText, FileCheck, Truck } from 'lucide-react';
 
 interface ClientDetailsModalProps {
   client: Client | null;
   onClose: () => void;
   onEdit: (client: Client) => void;
-  onViewFile: (file: AttachedFile) => void;
+  onViewFile?: (file: AttachedFile) => void;
   onViewDocument?: (client: Client, type: DocumentType) => void;
-  userRole?: 'admin' | 'commercial' | 'gestionnaire_stock';
+  userRole?: 'admin' | 'commercial';
 }
 
 export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile, onViewDocument, userRole }: ClientDetailsModalProps) {
@@ -30,53 +30,6 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD', maximumFractionDigits: 0 }).format(val);
-  };
-
-  const renderFileCard = (file: AttachedFile | null, title: string) => {
-    if (!file) {
-      return (
-        <div className="border border-dashed border-slate-200 rounded-xl p-4 flex items-center gap-3.5 bg-slate-50/50 text-slate-400">
-          <FileText className="w-5 h-5 opacity-40 flex-shrink-0 text-slate-400" />
-          <div className="min-w-0 flex-1 leading-normal">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-wider leading-none">{title}</p>
-            <p className="text-xs text-slate-400 font-medium mt-1">Non joint au dossier</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="border border-slate-200 rounded-xl p-4 bg-white hover:border-amber-400 hover:shadow-md transition-all duration-200 flex items-center justify-between gap-3 group">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg group-hover:bg-amber-100 transition-colors">
-            <FileText className="w-5 h-5 text-[#f5be1a]" />
-          </div>
-          <div className="min-w-0 leading-tight">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-wider leading-none">{title}</p>
-            <p className="text-sm text-slate-800 font-bold truncate max-w-[200px] mt-1.5 font-mono" title={file.name}>
-              {file.name}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button
-            onClick={() => onViewFile(file)}
-            className="inline-flex items-center justify-center p-2 bg-slate-50 hover:bg-slate-200 hover:text-slate-900 text-slate-600 rounded-lg transition-colors cursor-pointer"
-            title="Visualiser le document"
-          >
-            <Eye className="w-4.5 h-4.5" />
-          </button>
-          <a
-            href={file.dataUrl}
-            download={file.name}
-            className="inline-flex items-center justify-center p-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg transition-colors text-center cursor-pointer"
-            title="Télécharger"
-          >
-            <Download className="w-4.5 h-4.5 text-[#f5be1a]" />
-          </a>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -95,29 +48,14 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
             <div>
               <h3 className="text-lg sm:text-xl font-black tracking-tight text-white uppercase font-sans flex flex-wrap items-center gap-2">
                 <span>{client.nomPrenom}</span>
-                {client.segment === 'surgele' ? (
-                  <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-cyan-400 border border-cyan-500/30 px-2.5 py-1 rounded-full bg-cyan-950/40 tracking-wider">
-                    <Snowflake className="w-3 h-3 text-cyan-400 animate-pulse" /> Surgelé
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-full bg-amber-950/40 tracking-wider">
-                    <Thermometer className="w-3 h-3 text-amber-400" /> Frais
-                  </span>
-                )}
-                {client.enAttente ? (
-                  <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-300 border border-amber-400/50 px-2.5 py-1 rounded-full bg-amber-950/80 tracking-wider shadow-xs">
-                    <Clock className="w-3 h-3 text-amber-400" /> En Attente
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full bg-emerald-950/40 tracking-wider">
-                    <Check className="w-3 h-3 text-emerald-400" /> Validé
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-300 border border-amber-400/50 px-2.5 py-1 rounded-full bg-amber-950/80 tracking-wider shadow-xs">
+                  {client.typeClient === 'vente_reparation' ? 'Vente et Réparation' : 'Vente'}
+                </span>
               </h3>
               <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
                 <Building2 className="w-4 h-4 text-[#f5be1a]" />
                 <span className="font-medium">
-                  Dossier d'installation • Enregistré le {new Date(client.createdAt).toLocaleDateString('fr-DZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  Dossier Client • Enregistré le {new Date(client.createdAt).toLocaleDateString('fr-DZ', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </p>
             </div>
@@ -178,56 +116,24 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider leading-none">Type de Client</p>
                   <div className="mt-2">
-                    {client.typeClient === 'production' ? (
-                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-purple-100 text-purple-900 border border-purple-300">
-                        Production
-                      </span>
-                    ) : client.typeClient === 'technicien_froid' ? (
-                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-teal-100 text-teal-900 border border-teal-300">
-                        Technicien en froid
+                    {client.typeClient === 'vente_reparation' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                        <Wrench className="w-3.5 h-3.5 text-amber-600" />
+                        Vente et Réparation
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-blue-100 text-blue-900 border border-blue-300">
-                        Carrossier
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black uppercase bg-blue-100 text-blue-900 border border-blue-300">
+                        <Package className="w-3.5 h-3.5 text-blue-600" />
+                        Vente
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider leading-none">État d'avancement de la commande</p>
-                  <div className="mt-2">
-                    {client.typeClient === 'production' ? (
-                      <div className="flex items-center gap-2">
-                        {client.etapeCommande === 'stratification' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
-                            1- Stratification
-                          </span>
-                        )}
-                        {client.etapeCommande === 'montage' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-blue-100 text-blue-900 border border-blue-300">
-                            2- Montage
-                          </span>
-                        )}
-                        {client.etapeCommande === 'finition' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-purple-100 text-purple-900 border border-purple-300">
-                            3- Finition
-                          </span>
-                        )}
-                        {client.etapeCommande === 'livraison' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
-                            4- Livraison
-                          </span>
-                        )}
-                        {(!client.etapeCommande) && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
-                            1- Stratification
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs font-bold text-slate-400 italic">Non applicable (réservé au type Production)</span>
-                    )}
+                  <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider leading-none">Date de l'opération</p>
+                  <div className="mt-2 text-xs font-mono font-bold text-slate-800">
+                    {client.dateAchat || new Date(client.createdAt).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
               </div>
@@ -237,7 +143,7 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                   <div>
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Détail de Vente Général</span>
                     <span className="text-xs font-black text-amber-900 bg-amber-100/80 border border-amber-300 px-2.5 py-1 rounded-lg mt-0.5 inline-block">
-                      {client.detailVente || 'Caisse frigorifique positive'}
+                      {client.detailVente || 'Boîte de vitesses complète'}
                     </span>
                   </div>
                   <div>
@@ -265,12 +171,12 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                           </span>
                           <span className="font-extrabold text-slate-900">{item.produit}</span>
                           {item.segment === 'surgele' ? (
-                            <span className="text-[10px] font-bold uppercase text-cyan-800 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-md">
-                              Surgelé (-20°C)
+                            <span className="text-[10px] font-bold uppercase text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                              Camion Poids Lourd
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold uppercase text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                              Frais (+4°C)
+                            <span className="text-[10px] font-bold uppercase text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                              Bus & Autocar
                             </span>
                           )}
                         </div>
@@ -286,7 +192,7 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                     <div>
                       <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider leading-none">Article / Produit acheté</p>
                       <p className="text-sm font-bold text-slate-900 mt-1.5 leading-snug">
-                        {client.produit || 'Fourgon Isotherme'}
+                        {client.produit || 'Boîte de vitesses ZF 16S2220 TD'}
                       </p>
                     </div>
                     <div>
@@ -504,7 +410,7 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                 <div className="flex items-center gap-2">
                   <Printer className="w-5 h-5 text-amber-400" />
                   <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest">
-                    Documents Officiels Carpôle ERP
+                    Documents Officiels Chaoui ERP
                   </h4>
                 </div>
                 <span className="text-[9px] font-extrabold uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 font-mono">
@@ -513,7 +419,7 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                Générez les documents comptables et logistiques officiels avec le logo et les identifiants fiscaux de la SARL Carpôle Industriel.
+                Générez les documents comptables et logistiques officiels avec le logo wordmark et les identifiants de la SARL Chaoui Poids Lourds.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
@@ -668,28 +574,6 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Attached Documents */}
-            <div className="bg-slate-50/60 rounded-2xl p-5 sm:p-6 border border-slate-200/80">
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 pb-2 border-b border-slate-250">
-                Documents Contractuels (PDF)
-              </h4>
-              {userRole === 'admin' ? (
-                <div className="grid grid-cols-1 gap-3">
-                  {renderFileCard(client.bonCommande, 'Bon de Commande')}
-                  {renderFileCard(client.facture, 'Facture Client')}
-                  {renderFileCard(client.bonLivraison, 'Bon de Livraison')}
-                </div>
-              ) : (
-                <div className="text-center p-4 bg-white border border-slate-200 rounded-xl">
-                  <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-800">Accès aux fichiers sécurisé</p>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                    La consultation et le téléchargement des documents contractuels (Bon de commande, facture, bon de livraison) sont réservés à l'Administrateur.
-                  </p>
-                </div>
-              )}
             </div>
 
           </div>

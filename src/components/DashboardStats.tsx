@@ -63,7 +63,7 @@ export default function DashboardStats({ clients, suppliers }: DashboardStatsPro
         <div className="space-y-1 min-w-0">
           <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400 truncate">Livraisons Fournisseurs</p>
           <h3 className="text-xl sm:text-2xl font-black font-mono text-slate-800 tracking-tight leading-tight truncate">
-            {pendingDeliveries} <span className="text-xs font-normal text-slate-400 font-sans">en attente</span>
+            {pendingDeliveries} <span className="text-xs font-normal text-slate-400 font-sans">à réceptionner</span>
           </h3>
           <p className="text-xs text-amber-600 font-bold truncate">
             {completedDeliveries} livrée{completedDeliveries > 1 ? 's' : ''} avec succès

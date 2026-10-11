@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Client } from '../types';
-import { CarpoleLogo } from './CarpoleLogo';
+import { ChaouiLogo } from './ChaouiLogo';
 import { Printer, X, FileText, CheckCircle2, Truck, FileCheck, DollarSign, Building2, Calendar, ShieldCheck, Factory, Layers, Info, Banknote, CreditCard } from 'lucide-react';
 
 export type DocumentType = 'facture' | 'bon_commande' | 'bon_livraison';
@@ -314,18 +314,18 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
           {/* Header Section: Logo & Company Address */}
           <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-6 border-b-2 border-slate-900">
             
-            {/* Left: Official Carpole Logo & Subtitle */}
+            {/* Left: Official Chaoui Wordmark Logo & Subtitle */}
             <div className="space-y-2 max-w-sm">
-              <div className="w-52 h-16 flex items-center">
-                <CarpoleLogo width="210" height="65" textColor="#0f172a" subtitleColor="#d97706" />
+              <div className="w-56 h-16 flex items-center">
+                <ChaouiLogo width="240" height="65" textColor="#0f172a" subtitleColor="#d97706" />
               </div>
               <div className="text-[11px] text-slate-600 font-medium leading-relaxed pt-1">
-                <p className="font-black text-slate-900 text-xs uppercase tracking-wide">SARL CARPÔLE INDUSTRIEL</p>
-                <p className="text-[10px] text-slate-500 font-medium pb-0.5">Fabrication d'équipements isothermes & carrosseries frigorifiques</p>
-                <p><strong className="text-slate-800 font-bold">Adresse de l’Atelier :</strong> Chaab Ersas, Lot F, N° M1, Constantine</p>
-                <p><strong className="text-slate-800 font-bold">Téléphone & WhatsApp :</strong> 0770 97 32 53 / 0770 97 32 03</p>
-                <p><strong className="text-slate-800 font-bold">Email de contact :</strong> a.derrouiche@motorest-dz.com</p>
-                <p><strong className="text-slate-800 font-bold">Web :</strong> www.carpole.dz</p>
+                <p className="font-black text-slate-900 text-xs uppercase tracking-wide">SARL CHAOUI POIDS LOURDS &amp; TRANSMISSIONS</p>
+                <p className="text-[10px] text-slate-500 font-medium pb-0.5">Spécialiste Boîtes de Vitesses &amp; Pièces de Rechange Camions et Bus</p>
+                <p><strong className="text-slate-800 font-bold">Zone d'Activité :</strong> Constantine / Alger, Algérie</p>
+                <p><strong className="text-slate-800 font-bold">Téléphone &amp; WhatsApp :</strong> 0770 97 32 53 / 0770 97 32 03</p>
+                <p><strong className="text-slate-800 font-bold">Email de contact :</strong> contact@chaoui-transmissions.dz</p>
+                <p><strong className="text-slate-800 font-bold">Web :</strong> www.chaoui-transmissions.dz</p>
               </div>
             </div>
 
@@ -361,13 +361,11 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Informations Client / Destinataire</p>
               <p className="text-base font-black text-slate-900 uppercase">{client.nomPrenom}</p>
               <p className="text-slate-700 font-bold flex items-center gap-1.5">
-                <span className="text-slate-400 font-normal">Type Client :</span>
-                {client.typeClient === 'production' ? (
-                  <span className="text-purple-700 font-extrabold uppercase">Production</span>
-                ) : client.typeClient === 'technicien_froid' ? (
-                  <span className="text-teal-700 font-extrabold uppercase">Technicien en Froid</span>
+                <span className="text-slate-400 font-normal">Type d'opération :</span>
+                {client.typeClient === 'vente_reparation' ? (
+                  <span className="text-amber-700 font-extrabold uppercase">Vente &amp; Réparation</span>
                 ) : (
-                  <span className="text-blue-700 font-extrabold uppercase">Carrossier</span>
+                  <span className="text-blue-700 font-extrabold uppercase">Vente</span>
                 )}
               </p>
               <p className="text-slate-700"><span className="text-slate-400">Téléphone :</span> <strong className="font-mono">{client.telephone || 'Non renseigné'}</strong></p>
@@ -387,7 +385,7 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
             <div className="my-4 p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
               {client.delaiRealisation && (
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 block">Délai de Réalisation Prévu :</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 block">Délai de Préparation / Réalisation Prévu :</span>
                   <span className="font-extrabold text-blue-950 text-sm">{client.delaiRealisation}</span>
                 </div>
               )}
@@ -406,8 +404,8 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
               <thead>
                 <tr className="bg-slate-900 text-white font-black uppercase text-[10px] tracking-wider">
                   <th className="py-3 px-4 w-12 text-center border-r border-slate-800">N°</th>
-                  <th className="py-3 px-4 border-r border-slate-800">Désignation de l'Équipement / Produit</th>
-                  <th className="py-3 px-4 border-r border-slate-800 text-center w-28">Segment</th>
+                  <th className="py-3 px-4 border-r border-slate-800">Désignation de la Boîte / Pièce de Rechange</th>
+                  <th className="py-3 px-4 border-r border-slate-800 text-center w-28">Type Véhicule</th>
                   <th className="py-3 px-4 border-r border-slate-800 text-center w-16">Qté</th>
                   <th className="py-3 px-4 border-r border-slate-800 text-right w-32">P.U. HT (DA)</th>
                   <th className="py-3 px-4 text-right w-36">Total HT (DA)</th>
@@ -418,6 +416,7 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
                   client.produits!.map((item, idx) => {
                     const itemQte = item.quantite || 1;
                     const itemPriceHT = item.prixApresRemise || item.prixBase || 0;
+                    const isBus = item.segment === 'bus';
                     return (
                       <tr key={item.id || idx} className="bg-white hover:bg-slate-50/50">
                         <td className="py-3.5 px-4 text-center font-bold text-slate-500 border-r border-slate-200">
@@ -425,13 +424,13 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
                         </td>
                         <td className="py-3.5 px-4 border-r border-slate-200">
                           <p className="font-black text-slate-900 text-sm">{item.produit}</p>
-                          <p className="text-[11px] text-amber-800 font-bold mt-0.5">• {client.detailVente || 'Caisse frigorifique'}</p>
+                          <p className="text-[11px] text-amber-800 font-bold mt-0.5">• {client.detailVente || 'Transmission & Pièces'}</p>
                         </td>
                         <td className="py-3.5 px-4 text-center border-r border-slate-200 font-bold">
-                          {item.segment === 'surgele' ? (
-                            <span className="text-cyan-800 font-black uppercase text-[10px] bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200">Surgelé (-20°C)</span>
+                          {isBus ? (
+                            <span className="text-purple-800 font-black uppercase text-[10px] bg-purple-50 px-2 py-0.5 rounded border border-purple-200">Bus / Autocar</span>
                           ) : (
-                            <span className="text-amber-800 font-black uppercase text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Frais (+4°C)</span>
+                            <span className="text-amber-800 font-black uppercase text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Camion PL</span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-center border-r border-slate-200 font-black font-mono text-sm">{itemQte}</td>
@@ -444,19 +443,19 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
                   <tr className="bg-white hover:bg-slate-50/50">
                     <td className="py-3.5 px-4 text-center font-bold text-slate-500 border-r border-slate-200">01</td>
                     <td className="py-3.5 px-4 border-r border-slate-200">
-                      <p className="font-black text-slate-900 text-sm">{client.produit || 'Équipement Isotherme / Frigorifique'}</p>
-                      {client.typeClient === 'production' && client.etapeCommande && (
+                      <p className="font-black text-slate-900 text-sm">{client.produit || 'Boîte de Vitesses Poids Lourd'}</p>
+                      {client.etapeCommande && (
                         <p className="text-[11px] text-purple-800 font-bold mt-1">
-                          • Étape d'avancement de production : <span className="uppercase text-purple-900 font-extrabold">{client.etapeCommande.replace('_', ' ')}</span>
+                          • Étape atelier transmission : <span className="uppercase text-purple-900 font-extrabold">{client.etapeCommande.replace('_', ' ')}</span>
                         </p>
                       )}
-                      <p className="text-[11px] text-slate-500 mt-0.5">Conforme aux normes industrielles d'isolation thermique CARPÔLE.</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Pièces conformes aux spécifications constructeurs d'origine CHAOUI.</p>
                     </td>
                     <td className="py-3.5 px-4 text-center border-r border-slate-200 font-bold">
-                      {client.segment === 'surgele' ? (
-                        <span className="text-cyan-800 font-black uppercase text-[10px] bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200">Surgelé (-20°C)</span>
+                      {client.segment === 'bus' ? (
+                        <span className="text-purple-800 font-black uppercase text-[10px] bg-purple-50 px-2 py-0.5 rounded border border-purple-200">Bus / Autocar</span>
                       ) : (
-                        <span className="text-amber-800 font-black uppercase text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Frais (+4°C)</span>
+                        <span className="text-amber-800 font-black uppercase text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Camion PL</span>
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center border-r border-slate-200 font-black font-mono text-sm">{qte}</td>
@@ -591,7 +590,7 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
           <div className="mt-12 pt-6 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-xs">
             <div className="space-y-16">
               <p className="font-black text-slate-900 uppercase tracking-wider text-[11px]">
-                Pour la SARL CARPÔLE INDUSTRIEL
+                Pour la SARL CHAOUI POIDS LOURDS &amp; TRANSMISSIONS
               </p>
               <div className="text-[10px] text-slate-400 italic">
                 (Cachet et signature autorisés)
@@ -603,14 +602,14 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
                 Le Client / Le Destinataire
               </p>
               <div className="text-[10px] text-slate-400 italic">
-                (Nom, Date & Mention « Bon pour accord »)
+                (Nom, Date &amp; Mention « Bon pour accord »)
               </div>
             </div>
           </div>
 
           {/* Footer watermark notice */}
           <div className="mt-10 pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400 font-mono">
-            SARL CARPÔLE INDUSTRIEL — Capital Social : 50.000.000 DA — Document généré le {new Date().toLocaleDateString('fr-DZ')} via CARPÔLE ERP
+            SARL CHAOUI — Capital Social : 50.000.000 DA — Spécialiste Boîtes de Vitesses &amp; Pièces Poids Lourds — {new Date().toLocaleDateString('fr-DZ')}
           </div>
 
         </div>

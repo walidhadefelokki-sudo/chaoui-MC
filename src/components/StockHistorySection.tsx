@@ -458,7 +458,7 @@ export default function StockHistorySection({
         {/* Footer */}
         <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium">
           <span>Affichage de <strong>{filteredHistory.length}</strong> mouvement(s) sur {unifiedHistory.length} au total</span>
-          <span className="text-[11px] text-slate-400">Carpole Industriel — Module de Traçabilité</span>
+          <span className="text-[11px] text-slate-400">Chaoui Poids Lourds — Module de Traçabilité</span>
         </div>
       </div>
 

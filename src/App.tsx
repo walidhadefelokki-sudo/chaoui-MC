@@ -4,12 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Client, Supplier, AttachedFile, User, StockItem, StockMovement } from './types';
+import { Client, Supplier, User, StockItem, StockMovement } from './types';
 import { 
   getClients, saveClient, deleteClient, 
   getSuppliers, saveSupplier, deleteSupplier,
   getStockItems, saveStockItem, deleteStockItem,
-  getStockMovements, saveStockMovement
+  getStockMovements, saveStockMovement,
+  clearAllData
 } from './lib/db';
 import { SEED_CLIENTS, SEED_SUPPLIERS, SEED_STOCK } from './lib/seedData';
 import DashboardStats from './components/DashboardStats';
@@ -17,15 +18,14 @@ import ClientSection from './components/ClientSection';
 import SupplierSection from './components/SupplierSection';
 import StockSection from './components/StockSection';
 import StockHistorySection from './components/StockHistorySection';
-import FilePreviewModal from './components/FilePreviewModal';
 import UserProfileModal from './components/UserProfileModal';
 import LoginScreen from './components/LoginScreen';
-import { CarpoleLogo } from './components/CarpoleLogo';
-import { Snowflake, Truck, ShieldAlert, CheckCircle2, ShoppingBag, Users, Calendar, LogOut, Shield, Lock, TrendingUp, Boxes, User as UserIcon, History } from 'lucide-react';
-import AnalyticsSection from './components/AnalyticsSection';
+import { ChaouiLogo } from './components/ChaouiLogo';
+import { Truck, ShieldAlert, ShoppingBag, Users, LogOut, Shield, Boxes, User as UserIcon, History, Trash2 } from 'lucide-react';
+import ResetDatabaseModal from './components/ResetDatabaseModal';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'clients' | 'suppliers' | 'stock' | 'history' | 'analytics'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'suppliers' | 'stock' | 'history'>('clients');
   const [clients, setClients] = useState<Client[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
@@ -35,84 +35,88 @@ export default function App() {
 
   // User Profile Modal State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  // Reset All Data Modal State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
 
-  // User Session State
+  // User Session State: Admin name must be Islam Chaoui
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('carpole_user');
+    localStorage.removeItem('carpole_user');
+    localStorage.removeItem('carpole_custom_creds');
+    const stored = localStorage.getItem('chaoui_user');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (parsed.role === 'admin') {
+          return {
+            username: 'admin',
+            fullName: 'Islam Chaoui',
+            email: parsed.email || 'direction@chaoui-bv.dz',
+            role: 'admin'
+          };
+        }
+        return parsed;
       } catch (e) {
         return null;
       }
     }
-    return null;
+    // Default admin is Islam Chaoui
+    return {
+      username: 'admin',
+      fullName: 'Islam Chaoui',
+      email: 'direction@chaoui-bv.dz',
+      role: 'admin'
+    };
   });
 
   const handleUpdateUser = (updatedUser: User) => {
     setCurrentUser(updatedUser);
-    localStorage.setItem('carpole_user', JSON.stringify(updatedUser));
+    localStorage.setItem('chaoui_user', JSON.stringify(updatedUser));
   };
 
-  // Redirect users according to role permissions
-  useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'gestionnaire_stock' && activeTab !== 'stock' && activeTab !== 'suppliers' && activeTab !== 'history') {
-        setActiveTab('stock');
-      } else if (currentUser.role !== 'admin' && activeTab === 'analytics') {
-        setActiveTab('clients');
-      }
-    }
-  }, [currentUser, activeTab]);
-
   const handleLogout = () => {
-    localStorage.removeItem('carpole_user');
+    localStorage.removeItem('chaoui_user');
     setCurrentUser(null);
   };
 
-  // File Preview State
-  const [previewFile, setPreviewFile] = useState<AttachedFile | null>(null);
-
-  // Load data from IndexedDB on startup
+  // Load data from IndexedDB on startup & Migrate with all figures at 0
   useEffect(() => {
     async function loadData() {
       try {
+        const isCleanZeroMigrated = localStorage.getItem('chaoui_zero_reset_v4');
+
+        if (!isCleanZeroMigrated) {
+          // Clean out previous database stores and carpole legacy data
+          try {
+            await clearAllData();
+          } catch (e) {
+            console.warn("Could not clear previous database stores:", e);
+          }
+
+          // Seed stock items with all figures at 0
+          for (const stockItem of SEED_STOCK) {
+            await saveStockItem(stockItem);
+          }
+
+          localStorage.setItem('chaoui_zero_reset_v4', 'true');
+        }
+
         let loadedClients = await getClients();
         let loadedSuppliers = await getSuppliers();
         let loadedStock = await getStockItems();
         let loadedMovements = await getStockMovements();
 
-        // Populate database with our premium Algerian seed data
-        let databaseUpdated = false;
-        
-        for (const client of SEED_CLIENTS) {
-          if (!loadedClients.some(c => c.id === client.id)) {
-            await saveClient(client);
-            databaseUpdated = true;
-          }
-        }
-        for (const supplier of SEED_SUPPLIERS) {
-          if (!loadedSuppliers.some(s => s.id === supplier.id)) {
-            await saveSupplier(supplier);
-            databaseUpdated = true;
-          }
-        }
-        for (const stockItem of SEED_STOCK) {
-          if (!loadedStock.some(s => s.id === stockItem.id)) {
+        // If stock is empty, initialize zeroed stock items
+        if (loadedStock.length === 0) {
+          for (const stockItem of SEED_STOCK) {
             await saveStockItem(stockItem);
-            databaseUpdated = true;
           }
-        }
-
-        if (databaseUpdated) {
-          loadedClients = await getClients();
-          loadedSuppliers = await getSuppliers();
           loadedStock = await getStockItems();
         }
 
-        setClients(loadedClients);
-        setSuppliers(loadedSuppliers);
-        setStockItems(loadedStock);
+        setClients(loadedClients || []);
+        setSuppliers(loadedSuppliers || []);
+        setStockItems(loadedStock || []);
         setMovements(loadedMovements || []);
       } catch (err) {
         console.error("IndexedDB error during startup:", err);
@@ -121,16 +125,49 @@ export default function App() {
         setIsLoading(false);
       }
     }
-
     loadData();
   }, []);
 
-  const handleAddStockMovement = async (movement: StockMovement) => {
+  // Reset/Empty all data handler
+  const handleResetAllData = async () => {
     try {
-      await saveStockMovement(movement);
-      setMovements(prev => [movement, ...prev]);
+      await clearAllData();
+      localStorage.setItem('chaoui_database_cleared', 'true');
+      localStorage.removeItem('chaoui_proforma_invoices');
+
+      setClients([]);
+      setSuppliers([]);
+      setStockItems([]);
+      setMovements([]);
+
+      setResetSuccessMessage("Toutes les données du logiciel ont été supprimées avec succès. Le système est maintenant vierge avec tous les compteurs à 0.");
+      setTimeout(() => setResetSuccessMessage(null), 5000);
     } catch (err) {
-      console.error("Failed to add stock movement:", err);
+      console.error("Failed to reset database:", err);
+      alert("Erreur lors de la suppression des données. Veuillez réessayer.");
+    }
+  };
+
+  // Restore zeroed catalog
+  const handleRestoreDemoData = async () => {
+    try {
+      setIsLoading(true);
+      await clearAllData();
+      for (const stockItem of SEED_STOCK) {
+        await saveStockItem(stockItem);
+      }
+
+      setClients([]);
+      setSuppliers([]);
+      setStockItems(SEED_STOCK);
+      setMovements([]);
+      setResetSuccessMessage("Le catalogue avec toutes les valeurs à 0 a été réinitialisé.");
+      setTimeout(() => setResetSuccessMessage(null), 5000);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la réinitialisation.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -157,7 +194,7 @@ export default function App() {
 
   const handleDeleteClient = async (id: string) => {
     if (currentUser?.role !== 'admin') {
-      alert("⚠️ Action Refusée : En tant que Responsable Commercial, vous n'êtes pas autorisé à supprimer les dossiers de vente. Veuillez contacter l'administrateur principal (Farid Bouchaib) pour toute suppression.");
+      alert("⚠️ Action Refusée : En tant que Responsable Commercial, vous n'êtes pas autorisé à supprimer les dossiers de vente. Veuillez contacter l'administrateur Islam Chaoui.");
       return;
     }
     try {
@@ -190,9 +227,15 @@ export default function App() {
         const newStockItem: StockItem = {
           id: crypto.randomUUID(),
           nom: targetName,
+          reference: 'REF-' + Math.floor(1000 + Math.random() * 9000),
+          referencePiece: 'REF-' + Math.floor(1000 + Math.random() * 9000),
+          marque: 'ZF',
+          quantite: 0,
+          quantiteInitiale: 0,
+          prixAchat: prod.prixUnitaire || 0,
+          prixVente: 0,
           type: prod.type || 'matiere_premiere',
           unite: prod.unite || 'Unités',
-          quantiteInitiale: 0,
           seuilAlerte: 2,
           prixUnitaireMoyen: prod.prixUnitaire || 0,
           fournisseurNom: supplier.nomPrenom,
@@ -230,7 +273,7 @@ export default function App() {
 
   const handleDeleteSupplier = async (id: string) => {
     if (currentUser?.role !== 'admin') {
-      alert("⚠️ Action Refusée : En tant que Responsable Commercial, vous n'êtes pas autorisé à supprimer les dossiers d'achat. Veuillez contacter l'administrateur principal (Farid Bouchaib) pour toute suppression.");
+      alert("⚠️ Action Refusée : En tant que Responsable Commercial, vous n'êtes pas autorisé à supprimer les dossiers d'achat. Veuillez contacter l'administrateur Islam Chaoui.");
       return;
     }
     try {
@@ -270,81 +313,78 @@ export default function App() {
   const handleEditStockItem = async (updatedStockItem: StockItem) => {
     try {
       await saveStockItem(updatedStockItem);
-      setStockItems(prev => prev.map(s => s.id === updatedStockItem.id ? updatedStockItem : s));
+      setStockItems(prev => prev.map(item => item.id === updatedStockItem.id ? updatedStockItem : item));
     } catch (err) {
       console.error("Failed to edit stock item:", err);
-      alert("Erreur lors de la modification de l'article de stock.");
+      alert("Erreur lors de la mise à jour de l'article de stock.");
     }
   };
 
   const handleDeleteStockItem = async (id: string) => {
-    if (currentUser?.role !== 'admin' && currentUser?.role !== 'gestionnaire_stock') {
-      alert("⚠️ Action Refusée : Vous n'êtes pas autorisé à supprimer les articles de stock.");
+    if (currentUser?.role !== 'admin') {
+      alert("⚠️ Action Refusée : Seul l'administrateur principal peut supprimer des articles de stock.");
       return;
     }
     try {
       await deleteStockItem(id);
-      setStockItems(prev => prev.filter(s => s.id !== id));
+      setStockItems(prev => prev.filter(item => item.id !== id));
     } catch (err) {
       console.error("Failed to delete stock item:", err);
       alert("Erreur lors de la suppression de l'article de stock.");
     }
   };
 
-  // Shared file preview
-  const handleViewFile = (file: AttachedFile) => {
-    setPreviewFile(file);
+  // Stock Movement Actions
+  const handleAddStockMovement = async (movement: StockMovement) => {
+    try {
+      await saveStockMovement(movement);
+      setMovements(prev => [movement, ...prev]);
+    } catch (err) {
+      console.error("Failed to save stock movement:", err);
+    }
   };
 
+  // If user is not logged in, show Login Screen
   if (!currentUser) {
-    return <LoginScreen onLogin={(user) => setCurrentUser(user)} />;
+    return <LoginScreen onLogin={handleUpdateUser} />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 antialiased selection:bg-amber-500 selection:text-white">
+    <div id="app-container" className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800">
       
-      {/* High Density Sticky Header */}
-      <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 shadow-sm">
-        <div className="w-full px-6 sm:px-8 lg:px-12 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* High-End Enterprise Navigation Bar */}
+      <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
+        <div className="w-full px-6 sm:px-8 lg:px-12 h-20 flex flex-col md:flex-row items-center justify-between gap-4 py-2 md:py-0">
           
-          {/* Custom CARPÔLE INDUSTRIEL Vector Logo */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 select-none">
-            <div className="h-14 py-1 flex items-center justify-start">
-              <CarpoleLogo className="h-full w-auto" />
+          {/* Brand Identity: SARL Chaoui */}
+          <div className="flex items-center gap-3 self-start md:self-center">
+            <div className="w-48 sm:w-56 h-12 flex items-center">
+              <ChaouiLogo width="220" height="58" textColor="#ffffff" subtitleColor="#f59e0b" accentColor="#f59e0b" />
             </div>
-
-            {/* Vertical Separator Line */}
-            <div className="hidden sm:block h-10 w-px bg-slate-800" />
-
-            {/* Branded Segment Info */}
-            <div className="flex flex-col justify-center gap-1.5">
-              <div className="flex items-center gap-2.5">
-                <span className="inline-flex items-center text-[10px] font-black uppercase text-[#f5be1a] border border-[#f5be1a]/30 px-3 py-1 rounded-full tracking-wider bg-[#f5be1a]/5">
-                  ISOTHERME & FROID
-                </span>
-                <span className="text-xs text-slate-500 font-bold hidden md:inline">ALGERIA</span>
-              </div>
-              <p className="text-xs text-slate-400 font-medium leading-none hidden lg:block">
-                Fabrication & Installation de Carrosseries Isothermes et Groupes Frigorifiques
-              </p>
+            <div className="hidden lg:block border-l border-slate-700/60 pl-3">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block leading-tight">
+                Gestion Commerciale &amp; Stocks
+              </span>
+              <span className="text-[9px] text-amber-400 font-mono font-semibold">
+                Poids Lourds • Boîtes de Vitesses
+              </span>
             </div>
           </div>
 
-          {/* Large Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-1 bg-slate-850 p-1 rounded-xl border border-slate-700/45 self-start md:self-center">
-            {currentUser?.role !== 'gestionnaire_stock' && (
-              <button
-                onClick={() => setActiveTab('clients')}
-                className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
-                  activeTab === 'clients'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/60'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                Clients & Ventes
-              </button>
-            )}
+          {/* Navigation Tabs (WITHOUT Analytics & BI as requested) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full pb-1 md:pb-0">
+            <button
+              onClick={() => setActiveTab('clients')}
+              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
+                activeTab === 'clients'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/60'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Clients (Ventes &amp; Réparations)
+            </button>
+
             <button
               onClick={() => setActiveTab('suppliers')}
               className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
@@ -356,6 +396,7 @@ export default function App() {
               <ShoppingBag className="w-4 h-4" />
               Fournisseurs
             </button>
+
             <button
               onClick={() => setActiveTab('stock')}
               className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
@@ -368,47 +409,30 @@ export default function App() {
               Gestion de stock
             </button>
 
-            {currentUser && (
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
-                  activeTab === 'history'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/60'
-                }`}
-              >
-                <History className="w-4 h-4 text-amber-400" />
-                Historique Entrées/Sorties
-              </button>
-            )}
-            {currentUser?.role === 'admin' && (
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
-                  activeTab === 'analytics'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                    : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/60'
-                }`}
-              >
-                <TrendingUp className="w-4 h-4" />
-                Analyses & BI
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
+                activeTab === 'history'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                  : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800/60'
+              }`}
+            >
+              <History className="w-4 h-4 text-amber-400" />
+              Historique Entrées/Sorties
+            </button>
           </div>
 
-          {/* User Session Profile & Logout */}
+          {/* User Session Profile (Admin: Islam Chaoui) & Logout */}
           <div className="flex items-center gap-3 self-start md:self-center bg-slate-850 py-1.5 px-3 rounded-xl border border-slate-700/45 hover:border-amber-500/50 transition-colors">
             <button
               type="button"
               onClick={() => setIsProfileModalOpen(true)}
               className="flex items-center gap-2.5 hover:bg-slate-800/80 p-1 rounded-lg transition-all cursor-pointer group text-left"
-              title="Cliquer pour gérer le profil utilisateur (Nom, Mot de passe, Options)"
+              title="Gérer le profil utilisateur"
             >
               <div className={`w-8.5 h-8.5 rounded-full flex items-center justify-center text-xs font-black transition-transform group-hover:scale-105 shadow-sm ${
                 currentUser.role === 'admin' 
                   ? 'bg-amber-500 text-slate-950' 
-                  : currentUser.role === 'gestionnaire_stock'
-                  ? 'bg-emerald-500 text-slate-950'
                   : 'bg-cyan-500 text-slate-950'
               }`}>
                 {currentUser.fullName.split(' ').map(n => n[0]).join('')}
@@ -422,16 +446,28 @@ export default function App() {
                   <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-xs ${
                     currentUser.role === 'admin'
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20'
-                      : currentUser.role === 'gestionnaire_stock'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
                       : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/20'
                   }`}>
-                    {currentUser.role === 'admin' ? 'Direction (Admin)' : currentUser.role === 'gestionnaire_stock' ? 'Gestionnaire de Stock' : 'Commercial'}
+                    {currentUser.role === 'admin' ? 'Direction (Admin)' : 'Commercial'}
                   </span>
                 </div>
               </div>
             </button>
             <div className="h-6 w-px bg-slate-700/60" />
+            
+            {/* Purge Database Button */}
+            {currentUser.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-700/60 text-red-300 hover:text-white transition-all text-xs font-bold cursor-pointer"
+                title="Vider toutes les données du logiciel"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                <span className="hidden xl:inline text-[11px] font-black uppercase">Vider les données</span>
+              </button>
+            )}
+            
             <button
               onClick={handleLogout}
               className="p-1.5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-md transition-colors cursor-pointer"
@@ -444,35 +480,30 @@ export default function App() {
         </div>
       </header>
 
-      {/* Role Notice for Commercial Account */}
-      {currentUser.role === 'commercial' && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 sm:px-8 lg:px-12 py-2 animate-in fade-in duration-150">
-          <div className="w-full flex items-center justify-between text-xs font-bold text-amber-400">
-            <span className="flex items-center gap-2 uppercase tracking-wide">
-              <Shield className="w-4 h-4 text-amber-500 animate-pulse" />
-              Mode de Consultation Commerciale Actif • Saisie & Modification Autorisées • Suppression Réservée à la Direction
-            </span>
-            <span className="opacity-80 font-mono text-[10px]">Sétif Cloud Secure Connection</span>
-          </div>
-        </div>
-      )}
-
-      {/* Role Notice for Stock Manager Account */}
-      {currentUser.role === 'gestionnaire_stock' && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 sm:px-8 lg:px-12 py-2 animate-in fade-in duration-150">
-          <div className="w-full flex items-center justify-between text-xs font-bold text-emerald-400">
-            <span className="flex items-center gap-2 uppercase tracking-wide">
-              <Shield className="w-4 h-4 text-emerald-500 animate-pulse" />
-              Mode Gestionnaire de Stock Actif • Accès Exclusif au Module Gestion de Produits & Stock
-            </span>
-            <span className="opacity-80 font-mono text-[10px]">Carpôle Stock Management</span>
-          </div>
-        </div>
-      )}
-
       {/* Main Container */}
       <main className="flex-1 w-full px-6 sm:px-8 lg:px-12 py-6">
         
+        {resetSuccessMessage && (
+          <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-xl p-4 flex items-center justify-between gap-3 text-emerald-900 shadow-xs animate-in fade-in duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-emerald-950">Mise à jour effectuée</p>
+                <p className="text-xs text-emerald-800 font-medium">{resetSuccessMessage}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleRestoreDemoData}
+              className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline px-3 py-1.5 rounded-lg hover:bg-emerald-100/60 transition-colors cursor-pointer shrink-0"
+            >
+              Réinitialiser
+            </button>
+          </div>
+        )}
+
         {dbError && (
           <div className="mb-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
             <ShieldAlert className="w-4.5 h-4.5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -486,7 +517,7 @@ export default function App() {
         {isLoading ? (
           <div className="h-96 flex flex-col items-center justify-center gap-2">
             <div className="w-10 h-10 rounded-full border-4 border-amber-100 border-t-amber-500 animate-spin" />
-            <p className="text-sm font-semibold text-slate-500">Chargement de la base de données Carpole...</p>
+            <p className="text-sm font-semibold text-slate-500">Chargement de la base de données Chaoui Poids Lourds...</p>
           </div>
         ) : (
           <div className="space-y-4 animate-in fade-in duration-200">
@@ -496,7 +527,7 @@ export default function App() {
               <DashboardStats clients={clients} suppliers={suppliers} />
             )}
 
-            {/* Dynamic Segment Rendering */}
+            {/* Dynamic Tab Rendering (Clients / Fournisseurs / Stock / Historique) */}
             <div className="bg-slate-50 rounded-lg">
               {activeTab === 'clients' ? (
                 <ClientSection
@@ -506,7 +537,6 @@ export default function App() {
                   onAddClient={handleAddClient}
                   onEditClient={handleEditClient}
                   onDeleteClient={handleDeleteClient}
-                  onViewFile={handleViewFile}
                   userRole={currentUser?.role}
                 />
               ) : activeTab === 'suppliers' ? (
@@ -531,25 +561,13 @@ export default function App() {
                   currentUser={currentUser}
                   onAddStockMovement={handleAddStockMovement}
                 />
-              ) : activeTab === 'history' ? (
+              ) : (
                 <StockHistorySection
                   movements={movements}
                   suppliers={suppliers}
                   clients={clients}
                   currentUser={currentUser}
                 />
-              ) : currentUser?.role === 'admin' ? (
-                <AnalyticsSection
-                  clients={clients}
-                  suppliers={suppliers}
-                  stockItems={stockItems}
-                />
-              ) : (
-                <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl shadow-xs">
-                  <ShieldAlert className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-                  <h3 className="text-lg font-bold text-slate-900">Accès Refusé</h3>
-                  <p className="text-sm text-slate-500 mt-1">Vous n'avez pas l'autorisation d'accéder à la rubrique Analyses & BI.</p>
-                </div>
               )}
             </div>
 
@@ -558,29 +576,21 @@ export default function App() {
 
       </main>
 
-      {/* Spacious Footer */}
+      {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-4 mt-8 text-center text-xs text-slate-500">
         <div className="w-full px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-3 font-medium">
           <div className="flex items-center gap-1.5 text-slate-600">
             <Truck className="w-4.5 h-4.5 text-slate-400" />
-            <span>© {new Date().getFullYear()} CARPOLE INDUSTRIEL Alger. Tous droits réservés.</span>
+            <span>© {new Date().getFullYear()} SARL CHAOUI POIDS LOURDS &amp; TRANSMISSIONS. Tous droits réservés.</span>
           </div>
           <div className="flex items-center gap-3 font-mono text-xs">
-            <span className="text-slate-500">RC: 16/00-0987654B15 • NIF: 001506012456789</span>
+            <span className="text-slate-500">RC: 21B0073197 • NIF: 002125007319732 • NIS: 002125010026564</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
-              Database Cloud-Based Offline Sync
+              Base de Données Synchronisée
             </span>
           </div>
         </div>
       </footer>
-
-      {/* Globally triggered PDF/File viewer modal */}
-      {previewFile && (
-        <FilePreviewModal
-          file={previewFile}
-          onClose={() => setPreviewFile(null)}
-        />
-      )}
 
       {/* User Profile & Account Settings Modal */}
       {isProfileModalOpen && currentUser && (
@@ -592,8 +602,20 @@ export default function App() {
           clients={clients}
           suppliers={suppliers}
           stockItems={stockItems}
+          onRequestResetDatabase={() => setIsResetModalOpen(true)}
         />
       )}
+
+      {/* Confirmation Modal to Empty / Purge Database */}
+      <ResetDatabaseModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirmReset={handleResetAllData}
+        clientCount={clients.length}
+        supplierCount={suppliers.length}
+        stockCount={stockItems.length}
+        movementCount={movements.length}
+      />
 
     </div>
   );

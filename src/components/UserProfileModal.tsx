@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { User, Client, Supplier, StockItem } from '../types';
 import { 
   X, User as UserIcon, Lock, Shield, CheckCircle, AlertCircle, 
-  Download, RefreshCw, Key, Mail, Building, Bell, LogOut, ChevronRight, Sparkles, Check, Users, UserCheck, Eye, EyeOff
+  Download, RefreshCw, Key, Mail, Building, Bell, LogOut, ChevronRight, Sparkles, Check, Users, UserCheck, Eye, EyeOff,
+  Trash2, AlertTriangle
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -13,6 +14,7 @@ interface UserProfileModalProps {
   clients: Client[];
   suppliers: Supplier[];
   stockItems: StockItem[];
+  onRequestResetDatabase?: () => void;
 }
 
 export default function UserProfileModal({
@@ -22,7 +24,8 @@ export default function UserProfileModal({
   onLogout,
   clients,
   suppliers,
-  stockItems
+  stockItems,
+  onRequestResetDatabase
 }: UserProfileModalProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'accounts' | 'actions'>('profile');
 
@@ -37,7 +40,7 @@ export default function UserProfileModal({
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Admin Account Management State
-  const [selectedManagedRole, setSelectedManagedRole] = useState<'admin' | 'commercial' | 'gestionnaire_stock'>('commercial');
+  const [selectedManagedRole, setSelectedManagedRole] = useState<'admin' | 'commercial'>('commercial');
   const [managedFullName, setManagedFullName] = useState('');
   const [managedUsername, setManagedUsername] = useState('');
   const [managedEmail, setManagedEmail] = useState('');
@@ -52,15 +55,14 @@ export default function UserProfileModal({
 
   // Default accounts reference
   const DEFAULT_ACCOUNTS = {
-    admin: { username: 'admin', fullName: 'Farid Bouchaib', email: 'admin@carpole.dz', password: 'admin', label: 'Direction Générale (Admin)' },
-    commercial: { username: 'commercial', fullName: 'Yacine Djebbar', email: 'commercial@carpole.dz', password: 'commercial', label: 'Commercial (Service Ventes)' },
-    gestionnaire_stock: { username: 'stock', fullName: 'Karim Mansouri', email: 'stock@carpole.dz', password: 'stock', label: 'Gestionnaire de Stock' }
+    admin: { username: 'admin', fullName: 'Islam Chaoui', email: 'direction@chaoui-bv.dz', password: 'admin', label: 'Direction Générale (Admin)' },
+    commercial: { username: 'commercial', fullName: 'Yacine Djebbar', email: 'commercial@chaoui-bv.dz', password: 'commercial', label: 'Commercial (Service Ventes)' }
   };
 
   // Helper to load managed account state
-  const loadManagedAccount = (role: 'admin' | 'commercial' | 'gestionnaire_stock') => {
+  const loadManagedAccount = (role: 'admin' | 'commercial') => {
     try {
-      const storedCreds = JSON.parse(localStorage.getItem('carpole_custom_creds') || '{}');
+      const storedCreds = JSON.parse(localStorage.getItem('chaoui_custom_creds') || '{}');
       const accountCreds = storedCreds[role] || {};
       const defaultAcc = DEFAULT_ACCOUNTS[role];
 
@@ -96,14 +98,14 @@ export default function UserProfileModal({
     
     // Save to custom credentials list in localStorage so login persists
     try {
-      const storedCreds = JSON.parse(localStorage.getItem('carpole_custom_creds') || '{}');
+      const storedCreds = JSON.parse(localStorage.getItem('chaoui_custom_creds') || '{}');
       storedCreds[updated.role] = {
         ...(storedCreds[updated.role] || {}),
         username: updated.username,
         fullName: updated.fullName,
         email: updated.email
       };
-      localStorage.setItem('carpole_custom_creds', JSON.stringify(storedCreds));
+      localStorage.setItem('chaoui_custom_creds', JSON.stringify(storedCreds));
     } catch (err) {
       console.error(err);
     }
@@ -134,12 +136,12 @@ export default function UserProfileModal({
 
     // Save new password to localStorage for login authentication
     try {
-      const storedCreds = JSON.parse(localStorage.getItem('carpole_custom_creds') || '{}');
+      const storedCreds = JSON.parse(localStorage.getItem('chaoui_custom_creds') || localStorage.getItem('carpole_custom_creds') || '{}');
       storedCreds[currentUser.role] = {
         ...(storedCreds[currentUser.role] || {}),
         password: newPassword
       };
-      localStorage.setItem('carpole_custom_creds', JSON.stringify(storedCreds));
+      localStorage.setItem('chaoui_custom_creds', JSON.stringify(storedCreds));
     } catch (err) {
       console.error(err);
     }
@@ -162,14 +164,14 @@ export default function UserProfileModal({
     }
 
     try {
-      const storedCreds = JSON.parse(localStorage.getItem('carpole_custom_creds') || '{}');
+      const storedCreds = JSON.parse(localStorage.getItem('chaoui_custom_creds') || localStorage.getItem('carpole_custom_creds') || '{}');
       storedCreds[selectedManagedRole] = {
         fullName: managedFullName.trim(),
         username: managedUsername.trim().toLowerCase(),
         email: managedEmail.trim(),
         password: managedPassword || DEFAULT_ACCOUNTS[selectedManagedRole].password
       };
-      localStorage.setItem('carpole_custom_creds', JSON.stringify(storedCreds));
+      localStorage.setItem('chaoui_custom_creds', JSON.stringify(storedCreds));
 
       // If updating current logged in user, update current user state too
       if (selectedManagedRole === currentUser.role) {
@@ -194,25 +196,24 @@ export default function UserProfileModal({
 
   // Role Toggle Simulation
   const handleToggleRole = () => {
-    const roles: ('admin' | 'commercial' | 'gestionnaire_stock')[] = ['admin', 'commercial', 'gestionnaire_stock'];
-    const nextIndex = (roles.indexOf(currentUser.role) + 1) % roles.length;
+    const roles: ('admin' | 'commercial')[] = ['admin', 'commercial'];
+    const nextIndex = (roles.indexOf(currentUser.role as 'admin' | 'commercial') + 1) % roles.length;
     const newRole = roles[nextIndex];
     const roleNames = {
       admin: 'Farid Bouchaib',
-      commercial: 'Yacine Djebbar',
-      gestionnaire_stock: 'Karim Mansouri'
+      commercial: 'Yacine Djebbar'
     };
     const updated: User = {
       ...currentUser,
       role: newRole,
       fullName: roleNames[newRole],
-      email: `${newRole}@carpole.dz`
+      email: `${newRole}@chaoui-bv.dz`
     };
     onUpdateUser(updated);
     setStatusMessage({ 
       type: 'success', 
       text: `Rôle basculé avec succès en Mode ${
-        newRole === 'admin' ? 'Direction (Admin)' : newRole === 'gestionnaire_stock' ? 'Gestionnaire de Stock' : 'Commercial'
+        newRole === 'admin' ? 'Direction (Admin)' : 'Commercial'
       }.` 
     });
     setTimeout(() => setStatusMessage(null), 3500);
@@ -234,7 +235,7 @@ export default function UserProfileModal({
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", jsonString);
-    downloadAnchor.setAttribute("download", `CARPOLE_INDUSTRIEL_BACKUP_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute("download", `CHAOUI_TRANSMISSIONS_BACKUP_${new Date().toISOString().split('T')[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -253,8 +254,6 @@ export default function UserProfileModal({
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-black shadow-inner border border-white/20 ${
               currentUser.role === 'admin' 
                 ? 'bg-amber-500 text-slate-950' 
-                : currentUser.role === 'gestionnaire_stock'
-                ? 'bg-emerald-500 text-slate-950'
                 : 'bg-cyan-500 text-slate-950'
             }`}>
               {currentUser.fullName.split(' ').map(n => n[0]).join('')}
@@ -265,16 +264,14 @@ export default function UserProfileModal({
                 <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-sm ${
                   currentUser.role === 'admin'
                     ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                    : currentUser.role === 'gestionnaire_stock'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                 }`}>
-                  {currentUser.role === 'admin' ? 'Direction (Admin)' : currentUser.role === 'gestionnaire_stock' ? 'Gestionnaire de Stock' : 'Commercial'}
+                  {currentUser.role === 'admin' ? 'Direction (Admin)' : 'Commercial'}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1 font-mono">{currentUser.email}</p>
               <p className="text-[10px] text-amber-400/90 font-bold mt-0.5 flex items-center gap-1">
-                <Building className="w-3 h-3 text-amber-400" /> CARPÔLE INDUSTRIEL • ISOTHERME & FROID ALGERIA
+                <Building className="w-3 h-3 text-amber-400" /> CHAOUI POIDS LOURDS &amp; TRANSMISSIONS • ALGERIA
               </p>
             </div>
           </div>
@@ -415,7 +412,7 @@ export default function UserProfileModal({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Ex: admin@carpole.dz"
+                    placeholder="Ex: direction@chaoui-bv.dz"
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
                   />
                 </div>
@@ -518,7 +515,7 @@ export default function UserProfileModal({
               </div>
 
               {/* Role selector sub-tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
                 <button
                   type="button"
                   onClick={() => { setSelectedManagedRole('commercial'); loadManagedAccount('commercial'); setStatusMessage(null); }}
@@ -529,20 +526,7 @@ export default function UserProfileModal({
                   }`}
                 >
                   <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Commercial</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setSelectedManagedRole('gestionnaire_stock'); loadManagedAccount('gestionnaire_stock'); setStatusMessage(null); }}
-                  className={`px-3 py-2.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    selectedManagedRole === 'gestionnaire_stock'
-                      ? 'bg-white text-slate-900 shadow-xs border border-slate-250'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Gestionnaire Stock</span>
+                  <span>Commercial (Ventes)</span>
                 </button>
 
                 <button
@@ -555,7 +539,7 @@ export default function UserProfileModal({
                   }`}
                 >
                   <Shield className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Admin / Direction</span>
+                  <span>Direction (Admin)</span>
                 </button>
               </div>
 
@@ -743,25 +727,54 @@ export default function UserProfileModal({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="p-4 bg-red-50/60 border border-red-200/60 hover:border-red-400 hover:bg-red-100/40 rounded-xl text-left transition-all group cursor-pointer flex flex-col justify-between"
+                  className="p-4 bg-slate-50 border border-slate-200 hover:border-slate-350 hover:bg-slate-100 rounded-xl text-left transition-all group cursor-pointer flex flex-col justify-between"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="p-2 rounded-lg bg-red-500/10 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                    <div className="p-2 rounded-lg bg-slate-200 text-slate-700 group-hover:bg-slate-300 transition-colors">
                       <LogOut className="w-4 h-4" />
                     </div>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-200/80 text-red-900">
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-800">
                       Déconnexion
                     </span>
                   </div>
                   <div className="mt-3">
-                    <h4 className="text-xs font-black text-red-900 transition-colors">
+                    <h4 className="text-xs font-black text-slate-800 transition-colors">
                       Verrouiller & Se Déconnecter
                     </h4>
-                    <p className="text-[10px] text-red-700/80 mt-0.5">
+                    <p className="text-[10px] text-slate-500 mt-0.5">
                       Ferme votre session courante en toute sécurité et retourne à l'écran de connexion.
                     </p>
                   </div>
                 </button>
+
+                {/* Action 5: Reset all data (Admin only or user requested) */}
+                {onRequestResetDatabase && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onRequestResetDatabase();
+                    }}
+                    className="p-4 bg-red-50/70 border border-red-250 hover:border-red-400 hover:bg-red-100/50 rounded-xl text-left transition-all group cursor-pointer flex flex-col justify-between sm:col-span-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-red-500/10 text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-200 text-red-900 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Remise à Zéro
+                      </span>
+                    </div>
+                    <div className="mt-3">
+                      <h4 className="text-xs font-black text-red-950 transition-colors">
+                        Vider toutes les données du logiciel
+                      </h4>
+                      <p className="text-[10px] text-red-700 mt-0.5 font-medium">
+                        Supprime immédiatement tous les clients, fournisseurs, stock, historiques et factures proformas enregistrés.
+                      </p>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
           )}

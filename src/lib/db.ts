@@ -5,8 +5,8 @@
 
 import { Client, Supplier, StockItem, StockMovement } from '../types';
 
-const DB_NAME = 'CarpoleIndustrielDB';
-const DB_VERSION = 3;
+const DB_NAME = 'ChaouiPoidsLourdsDB';
+const DB_VERSION = 1;
 const STORE_CLIENTS = 'clients';
 const STORE_SUPPLIERS = 'suppliers';
 const STORE_STOCK = 'stock';
@@ -39,6 +39,19 @@ export function initDB(): Promise<IDBDatabase> {
     request.onerror = (event) => {
       reject((event.target as IDBOpenDBRequest).error);
     };
+  });
+}
+
+export async function clearAllData(): Promise<void> {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_CLIENTS, STORE_SUPPLIERS, STORE_STOCK, STORE_MOVEMENTS], 'readwrite');
+    transaction.objectStore(STORE_CLIENTS).clear();
+    transaction.objectStore(STORE_SUPPLIERS).clear();
+    transaction.objectStore(STORE_STOCK).clear();
+    transaction.objectStore(STORE_MOVEMENTS).clear();
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
   });
 }
 
@@ -203,7 +216,7 @@ export async function getStockMovements(): Promise<StockMovement[]> {
     const request = store.getAll();
 
     request.onsuccess = () => {
-      resolve(request.result as StockMovement[]);
+      resolve((request.result as StockMovement[]) || []);
     };
 
     request.onerror = () => {
@@ -245,4 +258,3 @@ export async function deleteStockMovement(id: string): Promise<void> {
     };
   });
 }
-

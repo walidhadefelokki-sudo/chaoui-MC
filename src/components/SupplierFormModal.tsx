@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Supplier, SupplierProductItem, StockItem, AttachedFile } from '../types';
+import { CATALOG_PRESET_ITEMS } from '../lib/gearboxCatalog';
 import { X, Calendar, ShoppingCart, AlertCircle, Plus, Trash2, Coins, Package, DollarSign, Building2, Phone, ShieldCheck, Upload, FileText, Eye, Calculator } from 'lucide-react';
 
 interface SupplierFormModalProps {
@@ -124,13 +125,20 @@ export default function SupplierFormModal({ supplier, onClose, onSave, stockItem
     setProduits(prev => prev.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        // Auto populate unit & price if matching a stock item
+        // Auto populate unit & price if matching a stock item or catalog preset
         if (field === 'produit' && typeof value === 'string') {
           const matchedStock = stockItems.find(st => st.nom.toLowerCase().trim() === value.toLowerCase().trim());
           if (matchedStock) {
             updated.prixUnitaire = matchedStock.prixUnitaireMoyen || updated.prixUnitaire;
             updated.type = matchedStock.type || updated.type;
             updated.unite = matchedStock.unite || updated.unite;
+          } else {
+            const matchedCatalog = CATALOG_PRESET_ITEMS.find(c => c.nom.toLowerCase().trim() === value.toLowerCase().trim());
+            if (matchedCatalog) {
+              updated.prixUnitaire = matchedCatalog.prixMoyen || updated.prixUnitaire;
+              updated.type = matchedCatalog.type || updated.type;
+              updated.unite = matchedCatalog.unite || updated.unite;
+            }
           }
         }
 
@@ -150,27 +158,7 @@ export default function SupplierFormModal({ supplier, onClose, onSave, stockItem
     }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setDevis({
-        id: crypto.randomUUID(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        dataUrl: result,
-      });
-      setErrorMsg('');
-    };
-    reader.onerror = () => {
-      setErrorMsg("Erreur lors de la lecture du devis.");
-    };
-    reader.readAsDataURL(file);
-  };
+  // Calculations
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,58 +306,6 @@ export default function SupplierFormModal({ supplier, onClose, onSave, stockItem
                 </div>
               </div>
             </div>
-
-            {/* Document Devis Upload */}
-            <div className="pt-2 border-t border-slate-200">
-              <label className="text-[10px] font-black text-slate-600 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
-                <FileText className="w-3.5 h-3.5 text-blue-600" />
-                Devis Fournisseur (Document Joint Optional)
-              </label>
-
-              {devis ? (
-                <div className="flex items-center justify-between p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-xs font-bold text-blue-900 truncate">{devis.name}</span>
-                    <span className="text-[10px] text-blue-600 font-mono">({(devis.size / 1024).toFixed(1)} KB)</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const win = window.open();
-                        win?.document.write(`<iframe src="${devis.dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                      }}
-                      className="p-1 text-blue-700 hover:bg-blue-100 rounded-lg cursor-pointer"
-                      title="Prévisualiser"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDevis(null)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
-                      title="Supprimer le devis"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative group">
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  <div className="border border-dashed border-slate-300 group-hover:border-blue-500 bg-white group-hover:bg-blue-50/30 rounded-xl p-3 flex items-center justify-center gap-2 text-center transition-all">
-                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                    <span className="text-xs font-bold text-slate-600 group-hover:text-blue-900">Joindre le Devis du Fournisseur (PDF ou Image)</span>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Section 2: Liste des Produits Achetés */}
@@ -426,7 +362,7 @@ export default function SupplierFormModal({ supplier, onClose, onSave, stockItem
                         list="stock-items-datalist"
                         value={item.produit}
                         onChange={(e) => handleProductChange(item.id, 'produit', e.target.value)}
-                        placeholder="Ex: Compresseur Bitzer, Panneaux 80mm..."
+                        placeholder="Ex: Pignon 1ère ZF 16S, Bague de frein, Baladeur, Arbre primaire, Roulement SKF..."
                         className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-xs font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden transition-all"
                       />
                     </div>
@@ -519,8 +455,13 @@ export default function SupplierFormModal({ supplier, onClose, onSave, stockItem
 
             {/* Datalist for stock items suggestion */}
             <datalist id="stock-items-datalist">
+              {/* Items from current stock */}
               {stockItems.map(st => (
                 <option key={st.id} value={st.nom} />
+              ))}
+              {/* Detailed parts from catalog */}
+              {CATALOG_PRESET_ITEMS.map(preset => (
+                <option key={preset.id} value={preset.nom} />
               ))}
             </datalist>
 

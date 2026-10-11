@@ -8,9 +8,7 @@ import { StockItem, Client, Supplier, User, StockMovement } from '../types';
 import StockExitModal from './StockExitModal';
 import { 
   Package, Boxes, Plus, Search, Edit, Trash2, 
-  AlertTriangle, CheckCircle, Info, Coins, 
-  ArrowUpRight, ArrowDownRight, RefreshCw, Layers, ShieldAlert, Phone,
-  LogOut, MinusCircle
+  MinusCircle, Coins, ShieldCheck, Sparkles, Building2, Tag, DollarSign, Layers
 } from 'lucide-react';
 
 interface StockSectionProps {
@@ -20,10 +18,28 @@ interface StockSectionProps {
   onAddStockItem: (item: StockItem) => void;
   onEditStockItem: (item: StockItem) => void;
   onDeleteStockItem: (id: string) => void;
-  userRole?: 'admin' | 'commercial' | 'gestionnaire_stock';
+  userRole?: 'admin' | 'commercial';
   currentUser?: User | null;
   onAddStockMovement?: (movement: StockMovement) => void;
 }
+
+const COMMON_BRANDS = [
+  'ZF',
+  'Eaton',
+  'Mercedes-Benz',
+  'Volvo',
+  'Scania',
+  'MAN',
+  'Renault Trucks',
+  'Euroricambi',
+  'CEI',
+  'Meritor',
+  'SKF',
+  'Valeo',
+  'DAF',
+  'Iveco',
+  'Autre'
+];
 
 export default function StockSection({
   stockItems,
@@ -37,8 +53,7 @@ export default function StockSection({
   onAddStockMovement
 }: StockSectionProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'matiere_premiere' | 'produit_fini'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'normal' | 'bas' | 'rupture'>('all');
+  const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('all');
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,134 +62,73 @@ export default function StockSection({
   // Stock Exit Modal state
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   
-  // Form state
-  const [formNom, setFormNom] = useState('');
-  const [formType, setFormType] = useState<'matiere_premiere' | 'produit_fini'>('produit_fini');
-  const [formUnite, setFormUnite] = useState('Unités');
-  const [formQuantiteInitiale, setFormQuantiteInitiale] = useState<number>(10);
-  const [formSeuilAlerte, setFormSeuilAlerte] = useState<number>(2);
-  const [formPrixUnitaire, setFormPrixUnitaire] = useState<number>(150000);
-  const [formFournisseurNom, setFormFournisseurNom] = useState('');
-  const [formFournisseurTelephone, setFormFournisseurTelephone] = useState('');
+  // Form state matching exact required columns: article / référence / marque / quantité / prix d'achat / prix de vente
+  const [formArticle, setFormArticle] = useState('');
+  const [formReference, setFormReference] = useState('');
+  const [formMarque, setFormMarque] = useState('ZF');
+  const [formQuantite, setFormQuantite] = useState<number>(0);
+  const [formPrixAchat, setFormPrixAchat] = useState<number>(0);
+  const [formPrixVente, setFormPrixVente] = useState<number>(0);
   const [formError, setFormError] = useState('');
 
-  // Helper function to sum quantity for a specific product name from a supplier
-  const getSupplierProductQty = (s: Supplier, itemNom: string): number => {
-    const target = itemNom.toLowerCase().trim();
-    if (s.produits && s.produits.length > 0) {
-      return s.produits.reduce((sum, p) => {
-        if ((p.produit || '').toLowerCase().trim() === target) {
-          return sum + (p.quantite || 0);
-        }
-        return sum;
-      }, 0);
-    }
-    if ((s.articleAchete || '').toLowerCase().trim() === target) {
-      return s.quantite || 0;
-    }
-    return 0;
-  };
-
-  // Helper function to sum quantity for a specific product name from a client purchase
-  const getClientProductQty = (c: Client, itemNom: string): number => {
-    const target = itemNom.toLowerCase().trim();
-    if (c.produits && c.produits.length > 0) {
-      return c.produits.reduce((sum, p) => {
-        if ((p.produit || '').toLowerCase().trim() === target) {
-          return sum + (p.quantite || 0);
-        }
-        return sum;
-      }, 0);
-    }
-    if ((c.produit || '').toLowerCase().trim() === target) {
-      return c.quantite || 0;
-    }
-    return 0;
-  };
-
-  // 1. Calculate dynamic statistics for each stock item based on client purchases & supplier deliveries
+  // 1. Dynamic calculations for stock
   const stockWithCalculations = useMemo(() => {
     return stockItems.map(item => {
-      // Received quantity from suppliers (only if delivered)
-      const recu = suppliers
-        .filter(s => s.livre)
-        .reduce((sum, s) => sum + getSupplierProductQty(s, item.nom), 0);
-
-      // Pending quantity in transit from suppliers
-      const enTransit = suppliers
-        .filter(s => !s.livre)
-        .reduce((sum, s) => sum + getSupplierProductQty(s, item.nom), 0);
-
-      // Sold quantity to clients
-      const vendu = clients
-        .reduce((sum, c) => sum + getClientProductQty(c, item.nom), 0);
-
-      const restante = item.quantiteInitiale + recu - vendu;
-      const valeurTotal = Math.max(0, restante) * item.prixUnitaireMoyen;
-
-      let status: 'normal' | 'bas' | 'rupture' = 'normal';
-      if (restante <= 0) {
-        status = 'rupture';
-      } else if (restante <= item.seuilAlerte) {
-        status = 'bas';
-      }
+      const currentQty = item.quantite ?? item.quantiteInitiale ?? 0;
+      const pAchat = item.prixAchat ?? item.prixUnitaireMoyen ?? 0;
+      const pVente = item.prixVente ?? 0;
+      const ref = item.reference || item.referencePiece || '-';
+      const marque = item.marque || 'ZF';
 
       return {
         ...item,
-        recu,
-        enTransit,
-        vendu,
-        restante: Math.max(0, restante),
-        valeurTotal,
-        status
+        currentQty,
+        pAchat,
+        pVente,
+        ref,
+        marque,
+        valeurAchatTotal: currentQty * pAchat,
+        valeurVenteTotal: currentQty * pVente
       };
     });
-  }, [stockItems, clients, suppliers]);
+  }, [stockItems]);
 
-  // 2. Compute KPI card totals
+  // 2. Compute KPI card totals (all initialized with exact numbers)
   const stats = useMemo(() => {
-    let totalValue = 0;
-    let itemsInRupture = 0;
-    let itemsInStockBas = 0;
-    let totalMatierePremiere = 0;
-    let totalProduitFini = 0;
+    let totalItems = stockWithCalculations.length;
+    let totalQuantite = 0;
+    let totalValeurAchat = 0;
+    let totalValeurVente = 0;
 
     stockWithCalculations.forEach(item => {
-      totalValue += item.valeurTotal;
-      if (item.restante <= 0) {
-        itemsInRupture++;
-      } else if (item.restante <= item.seuilAlerte) {
-        itemsInStockBas++;
-      }
-
-      if (item.type === 'matiere_premiere') {
-        totalMatierePremiere++;
-      } else {
-        totalProduitFini++;
-      }
+      totalQuantite += item.currentQty;
+      totalValeurAchat += item.valeurAchatTotal;
+      totalValeurVente += item.valeurVenteTotal;
     });
 
     return {
-      totalValue,
-      itemsInRupture,
-      itemsInStockBas,
-      totalMatierePremiere,
-      totalProduitFini,
-      totalItemsCount: stockItems.length
+      totalItems,
+      totalQuantite,
+      totalValeurAchat,
+      totalValeurVente
     };
-  }, [stockWithCalculations, stockItems]);
+  }, [stockWithCalculations]);
 
-  // 3. Filtered Stock list (sorted by date descending - du dernier au premier)
+  // 3. Filtered Stock list
   const filteredStock = useMemo(() => {
     return stockWithCalculations
       .filter(item => {
-        const matchesSearch = item.nom.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = typeFilter === 'all' || item.type === typeFilter;
-        const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-        return matchesSearch && matchesType && matchesStatus;
+        const query = searchTerm.toLowerCase().trim();
+        const matchesSearch = !query || 
+          (item.nom || '').toLowerCase().includes(query) ||
+          (item.ref || '').toLowerCase().includes(query) ||
+          (item.marque || '').toLowerCase().includes(query);
+
+        const matchesBrand = selectedBrandFilter === 'all' || item.marque === selectedBrandFilter;
+        return matchesSearch && matchesBrand;
       })
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }, [stockWithCalculations, searchTerm, typeFilter, statusFilter]);
+  }, [stockWithCalculations, searchTerm, selectedBrandFilter]);
 
   // Handle open exit stock modal
   const handleOpenExitModal = () => {
@@ -195,12 +149,12 @@ export default function StockSection({
     exits.forEach(exit => {
       const targetItem = stockItems.find(s => s.id === exit.stockItemId);
       if (targetItem) {
-        const newQuantiteInitiale = Math.max(0, targetItem.quantiteInitiale - exit.quantite);
+        const currentQty = targetItem.quantite ?? targetItem.quantiteInitiale ?? 0;
+        const newQty = Math.max(0, currentQty - exit.quantite);
         const updatedItem: StockItem = {
           ...targetItem,
-          quantiteInitiale: newQuantiteInitiale,
-          type: exit.type,
-          unite: exit.unite
+          quantite: newQty,
+          quantiteInitiale: newQty
         };
         onEditStockItem(updatedItem);
 
@@ -212,11 +166,11 @@ export default function StockSection({
             date: exit.date || new Date().toISOString(),
             produit: exit.produit,
             quantite: exit.quantite,
-            unite: exit.unite,
-            typeArticle: exit.type,
+            unite: exit.unite || 'Unités',
+            typeArticle: exit.type || 'matiere_premiere',
             nomUtilisateur: exit.username,
             tierNom: exit.clientNom,
-            motif: exit.motif || 'Sortie Atelier / Client',
+            motif: exit.motif || 'Sortie Client / Atelier',
             createdAt: new Date().toISOString()
           });
         }
@@ -228,24 +182,20 @@ export default function StockSection({
   const handleOpenModal = (item?: StockItem) => {
     if (item) {
       setEditingItem(item);
-      setFormNom(item.nom);
-      setFormType(item.type);
-      setFormUnite(item.unite);
-      setFormQuantiteInitiale(item.quantiteInitiale);
-      setFormSeuilAlerte(item.seuilAlerte);
-      setFormPrixUnitaire(item.prixUnitaireMoyen);
-      setFormFournisseurNom(item.fournisseurNom || '');
-      setFormFournisseurTelephone(item.fournisseurTelephone || '');
+      setFormArticle(item.nom || '');
+      setFormReference(item.reference || item.referencePiece || '');
+      setFormMarque(item.marque || 'ZF');
+      setFormQuantite(item.quantite ?? item.quantiteInitiale ?? 0);
+      setFormPrixAchat(item.prixAchat ?? item.prixUnitaireMoyen ?? 0);
+      setFormPrixVente(item.prixVente ?? 0);
     } else {
       setEditingItem(null);
-      setFormNom('');
-      setFormType('produit_fini');
-      setFormUnite('Unités');
-      setFormQuantiteInitiale(10);
-      setFormSeuilAlerte(2);
-      setFormPrixUnitaire(150000);
-      setFormFournisseurNom('');
-      setFormFournisseurTelephone('');
+      setFormArticle('');
+      setFormReference('');
+      setFormMarque('ZF');
+      setFormQuantite(0);
+      setFormPrixAchat(0);
+      setFormPrixVente(0);
     }
     setFormError('');
     setIsModalOpen(true);
@@ -253,191 +203,152 @@ export default function StockSection({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formNom.trim()) {
-      setFormError("Le nom de l'article de stock est obligatoire.");
+    if (!formArticle.trim()) {
+      setFormError("Le nom de l'article est obligatoire.");
       return;
     }
 
-    if (formQuantiteInitiale < 0) {
-      setFormError("La quantité initiale ne peut pas être négative.");
+    if (!formReference.trim()) {
+      setFormError("La référence de la pièce est obligatoire.");
       return;
     }
 
-    if (formSeuilAlerte < 0) {
-      setFormError("Le seuil d'alerte ne peut pas être négatif.");
+    if (formQuantite < 0) {
+      setFormError("La quantité ne peut pas être négative.");
       return;
     }
 
-    if (formPrixUnitaire < 0) {
-      setFormError("Le prix unitaire ne peut pas être négatif.");
+    if (formPrixAchat < 0) {
+      setFormError("Le prix d'achat ne peut pas être négatif.");
+      return;
+    }
+
+    if (formPrixVente < 0) {
+      setFormError("Le prix de vente ne peut pas être négatif.");
       return;
     }
 
     const savedItem: StockItem = {
       id: editingItem ? editingItem.id : crypto.randomUUID(),
-      nom: formNom.trim(),
-      type: formType,
-      unite: formUnite.trim() || 'Unités',
-      quantiteInitiale: formQuantiteInitiale,
-      seuilAlerte: formSeuilAlerte,
-      prixUnitaireMoyen: formPrixUnitaire,
-      fournisseurNom: formFournisseurNom.trim() || undefined,
-      fournisseurTelephone: formFournisseurTelephone.trim() || undefined,
+      nom: formArticle.trim(),
+      reference: formReference.trim(),
+      referencePiece: formReference.trim(),
+      marque: formMarque.trim() || 'ZF',
+      quantite: formQuantite,
+      quantiteInitiale: formQuantite,
+      prixAchat: formPrixAchat,
+      prixVente: formPrixVente,
+      prixUnitaireMoyen: formPrixAchat,
+      type: 'matiere_premiere',
+      unite: 'Unités',
       createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
     };
 
     if (editingItem) {
       onEditStockItem(savedItem);
     } else {
-      // Check for duplicate names
-      const duplicate = stockItems.some(item => item.nom.toLowerCase().trim() === savedItem.nom.toLowerCase().trim());
-      if (duplicate) {
-        setFormError("Un article de stock portant exactement ce nom existe déjà.");
-        return;
-      }
       onAddStockItem(savedItem);
     }
     setIsModalOpen(false);
   };
 
-  const confirmDelete = (id: string, name: string) => {
-    if (userRole !== 'admin' && userRole !== 'gestionnaire_stock') {
-      alert("⚠️ Action Refusée : Vous n'avez pas l'autorisation de supprimer des articles de stock.");
-      return;
-    }
-    if (confirm(`Êtes-vous sûr de vouloir supprimer définitivement l'article "${name}" du stock ? Cette action est irréversible.`)) {
-      onDeleteStockItem(id);
-    }
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD', maximumFractionDigits: 0 }).format(val);
   };
 
   return (
-    <div className="space-y-6">
+    <div id="stock-section" className="space-y-6">
       
-      {/* Stock Summary Header Banner */}
-      <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl relative overflow-hidden text-left">
-        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-          <Boxes className="w-64 h-64 text-white" />
-        </div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <span className="bg-amber-500/10 text-amber-400 text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-full border border-amber-500/20 inline-flex items-center gap-1.5 mb-3">
-              <Layers className="w-3.5 h-3.5" /> Module Centralisé & Intelligent
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            Gestion des Produits en Stock
+            <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-250">
+              {stats.totalItems} articles
             </span>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-none">
-              Gestion de Stock Intégrée
-            </h2>
-            <p className="text-slate-400 text-xs sm:text-sm mt-2 font-medium leading-relaxed max-w-xl">
-              Suivi unifié et automatique des matières premières et produits finis. Les ventes clients réduisent le stock instantanément, tandis que les livraisons fournisseurs l'approvisionnent.
-            </p>
-          </div>
+          </h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Suivi des boîtes de vitesses et pièces : article, référence, marque, quantité, prix d'achat et prix de vente.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
+            type="button"
             onClick={handleOpenExitModal}
-            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-97 cursor-pointer self-stretch md:self-auto justify-center"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
           >
-            <LogOut className="w-4.5 h-4.5 stroke-[2.5px]" />
-            Sortir un Article
+            <MinusCircle className="w-4 h-4 text-amber-400" />
+            Sortie de Stock
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOpenModal()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvel Article
           </button>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Total Stock Value */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between text-left">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Valeur du Stock Global</span>
-              <span className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
-                <Coins className="w-4 h-4" />
-              </span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2 font-mono">
-              {stats.totalValue.toLocaleString('fr-FR')} <span className="text-xs text-slate-500 font-extrabold">DA</span>
-            </p>
+      {/* KPI Cards (All numbers starting at 0) */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {/* Card 1: Total Articles */}
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Articles</span>
+            <p className="text-2xl font-black font-mono text-slate-900">{stats.totalItems}</p>
+            <span className="text-[11px] text-slate-500 font-medium">références catalogue</span>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1 text-[11px] text-slate-400">
-            <span className="font-bold text-slate-700">{stats.totalItemsCount}</span> articles enregistrés en base
+          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
+            <Boxes className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Stock bas / Critique */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between text-left">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Alerte Stock Bas</span>
-              <span className={`p-1.5 rounded-lg ${stats.itemsInStockBas > 0 ? 'bg-amber-100 text-amber-600 animate-pulse' : 'bg-slate-50 text-slate-400'}`}>
-                <AlertTriangle className="w-4 h-4" />
-              </span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2 font-mono">
-              {stats.itemsInStockBas} <span className="text-xs text-slate-500 font-extrabold">art.</span>
-            </p>
+        {/* Card 2: Quantité Totale */}
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Quantité en Stock</span>
+            <p className="text-2xl font-black font-mono text-slate-900">{stats.totalQuantite}</p>
+            <span className="text-[11px] text-slate-500 font-medium">unités physiques</span>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
-            {stats.itemsInStockBas > 0 ? (
-              <span className="text-amber-600 font-bold">⚠️ Quantité sous le seuil critique</span>
-            ) : (
-              <span className="text-emerald-600 font-bold">✓ Aucun article en stock bas</span>
-            )}
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+            <Package className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Ruptures de Stock */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between text-left">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Ruptures de Stock</span>
-              <span className={`p-1.5 rounded-lg ${stats.itemsInRupture > 0 ? 'bg-red-100 text-red-600 animate-bounce' : 'bg-slate-50 text-slate-400'}`}>
-                <RefreshCw className="w-4 h-4" />
-              </span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2 font-mono">
-              {stats.itemsInRupture} <span className="text-xs text-slate-500 font-extrabold">art.</span>
-            </p>
+        {/* Card 3: Valeur Achat */}
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Valeur Totale Achat</span>
+            <p className="text-xl font-black font-mono text-slate-900 truncate max-w-[170px]">{formatCurrency(stats.totalValeurAchat)}</p>
+            <span className="text-[11px] text-slate-500 font-medium">prix d'achat total</span>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
-            {stats.itemsInRupture > 0 ? (
-              <span className="text-red-600 font-black">❌ Réapprovisionnement urgent requis</span>
-            ) : (
-              <span className="text-emerald-600 font-bold">✓ Aucune rupture de stock</span>
-            )}
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+            <Coins className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Composition du catalogue */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col justify-between text-left">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Composition Catalogue</span>
-              <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
-                <Boxes className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-              <div>
-                <span className="text-[9px] text-slate-400 uppercase font-bold block">Produits Finis</span>
-                <span className="font-extrabold text-slate-800">{stats.totalProduitFini}</span>
-              </div>
-              <div>
-                <span className="text-[9px] text-slate-400 uppercase font-bold block">Mat. Premières</span>
-                <span className="font-extrabold text-slate-800">{stats.totalMatierePremiere}</span>
-              </div>
-            </div>
+        {/* Card 4: Valeur Vente */}
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Valeur Totale Vente</span>
+            <p className="text-xl font-black font-mono text-emerald-600 truncate max-w-[170px]">{formatCurrency(stats.totalValeurVente)}</p>
+            <span className="text-[11px] text-slate-500 font-medium">prix de vente potentiel</span>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Rapport MP/PF :</span>
-            <span className="font-extrabold text-slate-700">
-              {stats.totalMatierePremiere} / {stats.totalProduitFini}
-            </span>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <DollarSign className="w-5 h-5" />
           </div>
         </div>
-
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs text-left">
-        <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3.5">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
           
           {/* Search */}
           <div className="relative flex-1">
@@ -446,440 +357,287 @@ export default function StockSection({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher par nom de matière première ou produit fini..."
+              placeholder="Rechercher par article, référence OEM ou marque (ex: ZF, Eaton, Mercedes, 1315 304...)"
               className="w-full pl-9 pr-4 py-2 bg-slate-50 hover:bg-slate-100/60 border border-slate-200 focus:bg-white rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all placeholder-slate-400"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            {/* Filter by Type */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-extrabold uppercase text-[10px] tracking-wide">Type :</span>
-              <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
-                <button
-                  onClick={() => setTypeFilter('all')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-white text-slate-800 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Tous
-                </button>
-                <button
-                  onClick={() => setTypeFilter('matiere_premiere')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${typeFilter === 'matiere_premiere' ? 'bg-white text-slate-800 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Matières Premières
-                </button>
-                <button
-                  onClick={() => setTypeFilter('produit_fini')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${typeFilter === 'produit_fini' ? 'bg-white text-slate-800 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Produits Finis
-                </button>
-              </div>
-            </div>
-
-            {/* Filter by Stock Status */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-extrabold uppercase text-[10px] tracking-wide">État :</span>
-              <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
-                <button
-                  onClick={() => setStatusFilter('all')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white text-slate-800 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Tous
-                </button>
-                <button
-                  onClick={() => setStatusFilter('normal')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${statusFilter === 'normal' ? 'bg-white text-emerald-600 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  En Stock
-                </button>
-                <button
-                  onClick={() => setStatusFilter('bas')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${statusFilter === 'bas' ? 'bg-white text-amber-600 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Stock Bas
-                </button>
-                <button
-                  onClick={() => setStatusFilter('rupture')}
-                  className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${statusFilter === 'rupture' ? 'bg-white text-red-600 shadow-4xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Rupture
-                </button>
-              </div>
-            </div>
+          {/* Brand Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Marque :</span>
+            <select
+              value={selectedBrandFilter}
+              onChange={(e) => setSelectedBrandFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-amber-500 cursor-pointer"
+            >
+              <option value="all">Toutes les marques</option>
+              {COMMON_BRANDS.map(brand => (
+                <option key={brand} value={brand}>{brand}</option>
+              ))}
+            </select>
           </div>
 
         </div>
       </div>
 
-      {/* Stock Inventory Table Container */}
+      {/* Products Stock Table: EXACT COLUMNS REQUIRED: article / référence / marque / quantité / prix d'achat / prix de vente */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden text-left">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-5 py-3.5">Article de Stock</th>
-                <th className="px-5 py-3.5">Unité</th>
-                <th className="px-5 py-3.5 text-center">Quantité Initiale</th>
-                <th className="px-5 py-3.5 text-center">Reçu (Fournisseurs)</th>
-                <th className="px-5 py-3.5 text-center">Vendu (Clients)</th>
-                <th className="px-5 py-3.5 text-center">Stock Restant</th>
-                <th className="px-5 py-3.5 text-center">Seuil d'Alerte</th>
-                <th className="px-5 py-3.5">P.U. Moyen</th>
-                <th className="px-5 py-3.5">Valeur Totale</th>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-black text-slate-500 uppercase tracking-wider">
+                <th className="px-5 py-3.5">Article</th>
+                <th className="px-5 py-3.5">Référence</th>
+                <th className="px-5 py-3.5">Marque</th>
+                <th className="px-5 py-3.5 text-center">Quantité</th>
+                <th className="px-5 py-3.5 text-right">Prix d'Achat</th>
+                <th className="px-5 py-3.5 text-right">Prix de Vente</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-150">
               {filteredStock.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-5 py-12 text-center text-slate-400">
-                    <Boxes className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                    <p className="text-xs font-bold">Aucun article de stock trouvé</p>
-                    <p className="text-[11px] text-slate-400/80 mt-1">Essayez de modifier votre recherche ou ajoutez un nouvel article.</p>
+                  <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                    <Boxes className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-sm font-black text-slate-700">Aucun produit en stock</p>
+                    <p className="text-xs text-slate-500 font-medium mt-1">
+                      Ajoutez votre premier article de boîte de vitesses ou pièce détachée.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenModal()}
+                      className="mt-4 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Ajouter un Article
+                    </button>
                   </td>
                 </tr>
               ) : (
-                filteredStock.map(item => {
-                  const matchingSupplierFromDeliveries = suppliers.find(s => s.articleAchete.toLowerCase().trim() === item.nom.toLowerCase().trim());
-                  const supplierName = item.fournisseurNom || matchingSupplierFromDeliveries?.nomPrenom;
-                  const supplierPhone = item.fournisseurTelephone || matchingSupplierFromDeliveries?.telephone;
-
-                  return (
-                    <tr 
-                      key={item.id} 
-                      className={`hover:bg-slate-50/50 transition-colors ${
-                        item.status === 'rupture' 
-                          ? 'bg-red-50/15' 
-                          : item.status === 'bas' 
-                            ? 'bg-amber-50/15' 
-                            : ''
-                      }`}
-                    >
-                      {/* Name & Type */}
-                      <td className="px-5 py-4">
+                filteredStock.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                    {/* 1. Article */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center font-black text-xs shrink-0">
+                          <Package className="w-4 h-4" />
+                        </div>
                         <div>
-                          <p className="text-xs font-black text-slate-900 leading-snug">{item.nom}</p>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-sm border ${
-                              item.type === 'matiere_premiere'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
-                                : 'bg-cyan-50 text-cyan-700 border-cyan-100'
-                            }`}>
-                              {item.type === 'matiere_premiere' ? 'Matière Première' : 'Produit Fini'}
-                            </span>
-                            {item.status === 'rupture' && (
-                              <span className="bg-red-100 text-red-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm">
-                                Rupture
-                              </span>
-                            )}
-                            {item.status === 'bas' && (
-                              <span className="bg-amber-100 text-amber-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm">
-                                Stock Bas
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Supplier Quick Contact info on emergency */}
-                          {supplierName && (
-                            <div className="mt-2.5 pt-1.5 border-t border-slate-100 text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1.5">
-                              <span className="text-slate-400 font-medium">Fournisseur :</span>
-                              <span className="text-slate-700 truncate max-w-[170px]" title={supplierName}>{supplierName}</span>
-                              {supplierPhone && (
-                                <a 
-                                  href={`tel:${supplierPhone.replace(/\s/g, '')}`}
-                                  className="inline-flex items-center gap-0.5 text-amber-600 hover:text-amber-700 font-black hover:underline px-1 py-0.5 bg-amber-50 border border-amber-250/40 rounded-sm"
-                                  title="Appeler immédiatement"
-                                >
-                                  <Phone className="w-2.5 h-2.5" />
-                                  <span>{supplierPhone}</span>
-                                </a>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Unit */}
-                      <td className="px-5 py-4">
-                        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                          {item.unite}
-                        </span>
-                      </td>
-
-                      {/* Initial Qty */}
-                      <td className="px-5 py-4 text-center font-mono text-xs font-bold text-slate-600">
-                        {item.quantiteInitiale}
-                      </td>
-
-                      {/* Received Qty */}
-                      <td className="px-5 py-4 text-center">
-                        <div className="inline-flex flex-col items-center">
-                          <span className={`font-mono text-xs font-bold ${item.recu > 0 ? 'text-emerald-600 font-extrabold' : 'text-slate-400'}`}>
-                            {item.recu > 0 ? `+${item.recu}` : '0'}
-                          </span>
-                          {item.enTransit > 0 && (
-                            <span className="text-[9px] text-amber-500 font-extrabold" title="Commande fournisseur en cours de livraison">
-                              +{item.enTransit} en cours
+                          <p className="font-bold text-slate-900 text-sm">{item.nom}</p>
+                          {item.boiteCompatible && (
+                            <span className="text-[10px] text-slate-400 font-medium block">
+                              Compatible : {item.boiteCompatible}
                             </span>
                           )}
                         </div>
-                      </td>
+                      </div>
+                    </td>
 
-                      {/* Sold Qty */}
-                      <td className="px-5 py-4 text-center font-mono text-xs font-bold">
-                        <span className={item.vendu > 0 ? 'text-red-500 font-extrabold' : 'text-slate-400'}>
-                          {item.vendu > 0 ? `-${item.vendu}` : '0'}
-                        </span>
-                      </td>
+                    {/* 2. Référence */}
+                    <td className="px-5 py-4 font-mono text-xs font-bold text-slate-700">
+                      {item.ref}
+                    </td>
 
-                      {/* Remaining Qty */}
-                      <td className="px-5 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black font-mono shadow-3xs ${
-                          item.status === 'rupture'
-                            ? 'bg-red-100 text-red-700 font-black border border-red-200'
-                            : item.status === 'bas'
-                              ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                              : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {item.restante}
-                        </span>
-                      </td>
+                    {/* 3. Marque */}
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-extrabold bg-slate-100 text-slate-800 border border-slate-200">
+                        {item.marque}
+                      </span>
+                    </td>
 
-                      {/* Alert Threshold */}
-                      <td className="px-5 py-4 text-center font-mono text-xs font-bold text-slate-400">
-                        {item.seuilAlerte}
-                      </td>
+                    {/* 4. Quantité */}
+                    <td className="px-5 py-4 text-center">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-black ${
+                        item.currentQty > 0
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : 'bg-slate-100 text-slate-500 border border-slate-200'
+                      }`}>
+                        {item.currentQty}
+                      </span>
+                    </td>
 
-                      {/* Average Unit Price */}
-                      <td className="px-5 py-4 font-mono text-xs font-bold text-slate-700">
-                        {item.prixUnitaireMoyen.toLocaleString('fr-FR')} DA
-                      </td>
+                    {/* 5. Prix d'achat */}
+                    <td className="px-5 py-4 text-right font-mono text-xs font-bold text-slate-800">
+                      {formatCurrency(item.pAchat)}
+                    </td>
 
-                      {/* Total Inventory Value */}
-                      <td className="px-5 py-4 font-mono text-xs font-black text-slate-900">
-                        {item.valeurTotal.toLocaleString('fr-FR')} DA
-                      </td>
+                    {/* 6. Prix de vente */}
+                    <td className="px-5 py-4 text-right font-mono text-xs font-black text-emerald-700">
+                      {formatCurrency(item.pVente)}
+                    </td>
 
-                      {/* Actions */}
-                      <td className="px-5 py-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleOpenModal(item)}
-                            className="p-2 hover:bg-amber-50 hover:text-amber-600 text-slate-400 rounded-lg transition-colors cursor-pointer"
-                            title="Modifier l'article"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          {userRole === 'admin' && (
-                            <button
-                              onClick={() => confirmDelete(item.id, item.nom)}
-                              className="p-2 hover:bg-red-50 hover:text-red-600 text-slate-400 rounded-lg transition-colors cursor-pointer"
-                              title="Supprimer l'article"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                    {/* Actions */}
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenModal(item)}
+                          className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors"
+                          title="Modifier l'article"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteStockItem(item.id)}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                          title="Supprimer l'article"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Add / Edit Stock Item Modal matching the 6 columns */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full my-4 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full my-auto overflow-hidden animate-in fade-in duration-150">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50">
-              <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
-                <Package className="w-4 h-4 text-amber-500" />
-                {editingItem ? 'Modifier l\'Article de Stock' : 'Ajouter un Nouvel Article de Stock'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <Plus className="w-4 h-4 rotate-45 stroke-[3px]" />
-              </button>
+            <div className="bg-slate-950 text-white p-5 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center text-slate-950 font-black">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-tight">
+                    {editingItem ? "Modifier l'Article de Stock" : "Ajouter un Article en Stock"}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Saisie conforme : Article, Référence, Marque, Quantité, Prix d'achat, Prix de vente.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSave} className="p-5 space-y-4 text-left">
-              
+            <form onSubmit={handleSave} className="p-6 space-y-4 text-left">
               {formError && (
-                <div className="bg-red-50 text-red-700 border border-red-150 rounded-xl p-3 flex items-start gap-1.5 text-xs">
-                  <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Erreur : </span>
-                    <span>{formError}</span>
-                  </div>
+                <div className="p-3 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200">
+                  {formError}
                 </div>
               )}
 
-              {/* Name */}
-              <div className="space-y-1.5">
+              {/* 1. Article (Désignation) */}
+              <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                  Nom de l'Article / Produit de Stock *
+                  1. Article (Désignation) *
                 </label>
                 <input
                   type="text"
                   required
-                  value={formNom}
-                  onChange={(e) => setFormNom(e.target.value)}
-                  placeholder="Ex: Compresseur Frigorifique Bitzer 4EES-6Y"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
+                  value={formArticle}
+                  onChange={(e) => setFormArticle(e.target.value)}
+                  placeholder="Ex: Boîte ZF 16S2220 TD ou Pignon 3ème"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
-                <p className="text-[10px] text-slate-400 font-medium">
-                  Important: Le nom doit correspondre à celui utilisé dans les fiches Clients ("Produit") ou Fournisseurs ("Article") pour une synchronisation automatique et intelligente.
-                </p>
               </div>
 
-              {/* Type and Unit */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+              {/* 2. Référence & 3. Marque */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Type d'Article *
-                  </label>
-                  <select
-                    value={formType}
-                    onChange={(e) => setFormType(e.target.value as 'matiere_premiere' | 'produit_fini')}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs cursor-pointer"
-                  >
-                    <option value="produit_fini">Produit Fini (Vendu aux clients)</option>
-                    <option value="matiere_premiere">Matière Première (Acheté aux fournisseurs)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Unité de Mesure *
+                    2. Référence (OEM / Pièce) *
                   </label>
                   <input
                     type="text"
                     required
-                    value={formUnite}
-                    onChange={(e) => setFormUnite(e.target.value)}
-                    placeholder="Ex: Unités, m², kg, Litres"
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
+                    value={formReference}
+                    onChange={(e) => setFormReference(e.target.value)}
+                    placeholder="Ex: 1315 304 022"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   />
                 </div>
-              </div>
 
-              {/* Quantities */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Stock Initial de Départ *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={formQuantiteInitiale}
-                    onChange={(e) => setFormQuantiteInitiale(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
-                  />
-                  <p className="text-[9px] text-slate-400 font-medium">
-                    Quantité physique disponible avant d'enregistrer de nouveaux achats ou ventes.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Seuil d'Alerte (Stock Bas) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={formSeuilAlerte}
-                    onChange={(e) => setFormSeuilAlerte(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
-                  />
-                  <p className="text-[9px] text-slate-400 font-medium">
-                    Déclenche une alerte orange visuelle en dessous de cette valeur restante.
-                  </p>
-                </div>
-              </div>
-
-              {/* Unit Price */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                  Prix Unitaire Moyen Estimé (DA) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={formPrixUnitaire}
-                  onChange={(e) => setFormPrixUnitaire(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
-                />
-              </div>
-
-              {/* Supplier and Phone Number systematically included */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3.5 mt-2.5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Fournisseur (Nom / Société)
+                    3. Marque *
                   </label>
                   <input
                     type="text"
-                    list="suppliers-auto-list"
-                    value={formFournisseurNom}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFormFournisseurNom(val);
-                      // Auto populate telephone if matching an existing supplier
-                      const matched = suppliers.find(s => s.nomPrenom.toLowerCase().trim() === val.toLowerCase().trim());
-                      if (matched && matched.telephone) {
-                        setFormFournisseurTelephone(matched.telephone);
-                      }
-                    }}
-                    placeholder="Ex: SARL Frigo Composants Algérie"
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
+                    required
+                    value={formMarque}
+                    onChange={(e) => setFormMarque(e.target.value)}
+                    placeholder="Ex: ZF, Eaton, Mercedes, Euroricambi..."
+                    list="brand-suggestions"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   />
-                  <datalist id="suppliers-auto-list">
-                    {Array.from(new Set(suppliers.map(s => s.nomPrenom))).map((name, i) => (
-                      <option key={i} value={name} />
+                  <datalist id="brand-suggestions">
+                    {COMMON_BRANDS.map(b => (
+                      <option key={b} value={b} />
                     ))}
                   </datalist>
                 </div>
-                <div className="space-y-1.5">
+              </div>
+
+              {/* 4. Quantité */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                  4. Quantité en Stock
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formQuantite}
+                  onChange={(e) => setFormQuantite(Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="0"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+
+              {/* 5. Prix d'achat & 6. Prix de vente */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    N° de Téléphone du Fournisseur
+                    5. Prix d'Achat (DA)
                   </label>
                   <input
-                    type="tel"
-                    value={formFournisseurTelephone}
-                    onChange={(e) => setFormFournisseurTelephone(e.target.value)}
-                    placeholder="Ex: 021 54 88 12 ou +33..."
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-slate-850 text-xs font-bold font-mono focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:outline-hidden transition-all shadow-3xs"
+                    type="number"
+                    min="0"
+                    value={formPrixAchat}
+                    onChange={(e) => setFormPrixAchat(Math.max(0, parseFloat(e.target.value) || 0))}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">
+                    6. Prix de Vente (DA)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formPrixVente}
+                    onChange={(e) => setFormPrixVente(Math.max(0, parseFloat(e.target.value) || 0))}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 bg-emerald-50/50 border border-emerald-250 rounded-xl text-emerald-950 text-xs font-mono font-bold focus:bg-white focus:border-emerald-500 focus:outline-hidden"
                   />
                 </div>
               </div>
 
-              {/* Footer Buttons */}
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-xs active:scale-97 cursor-pointer"
+                  className="px-5 py-2 text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 rounded-xl uppercase tracking-wider transition-all cursor-pointer"
                 >
-                  {editingItem ? 'Enregistrer les Modifications' : 'Ajouter au Stock'}
+                  {editingItem ? "Enregistrer" : "Créer l'Article"}
                 </button>
               </div>
 
@@ -888,16 +646,18 @@ export default function StockSection({
         </div>
       )}
 
-      {/* Sortir un Article Modal */}
-      <StockExitModal
-        isOpen={isExitModalOpen}
-        onClose={() => setIsExitModalOpen(false)}
-        stockItems={stockItems}
-        stockWithCalculations={stockWithCalculations}
-        clients={clients}
-        currentUser={currentUser || null}
-        onConfirmExit={handleBatchConfirmExit}
-      />
+      {/* Stock Exit Modal */}
+      {isExitModalOpen && (
+        <StockExitModal
+          isOpen={isExitModalOpen}
+          onClose={() => setIsExitModalOpen(false)}
+          stockItems={stockItems}
+          stockWithCalculations={stockWithCalculations.map(s => ({ ...s, restante: s.currentQty }))}
+          clients={clients}
+          currentUser={currentUser || null}
+          onConfirmExit={handleBatchConfirmExit}
+        />
+      )}
 
     </div>
   );

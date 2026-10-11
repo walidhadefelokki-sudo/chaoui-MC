@@ -63,7 +63,7 @@ export default function StockExitModal({
           id: crypto.randomUUID(),
           stockItemId: firstItem.id,
           quantite: 1,
-          type: firstItem.type,
+          type: firstItem.type || 'matiere_premiere',
           unite: firstItem.unite || 'Unités',
         }]);
       } else {
@@ -88,8 +88,8 @@ export default function StockExitModal({
         id: crypto.randomUUID(),
         stockItemId: firstItem ? firstItem.id : '',
         quantite: 1,
-        type: firstItem ? firstItem.type : 'matiere_premiere',
-        unite: firstItem ? (firstItem.unite || 'Unités') : 'Unités',
+        type: firstItem?.type || 'matiere_premiere',
+        unite: firstItem?.unite || 'Unités',
       }
     ]);
   };

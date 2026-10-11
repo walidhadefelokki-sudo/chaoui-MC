@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ProformaInvoice, ClientProductItem, StockItem } from '../types';
+import { CATALOG_PRESET_ITEMS } from '../lib/gearboxCatalog';
 import { X, FileText, Calendar, Clock, MapPin, Plus, Trash2, ShoppingCart, Calculator, AlertCircle, Printer, Check } from 'lucide-react';
 
 interface ProformaFormModalProps {
@@ -75,12 +76,18 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
           }
         }
 
-        // Auto populate price if stock item matches
+        // Auto populate price if stock item or catalog preset matches
         if (field === 'produit' && typeof value === 'string') {
-          const match = stockItems.find(st => st.nom.toLowerCase().trim() === value.toLowerCase().trim());
-          if (match && match.prixUnitaireMoyen) {
-            updated.prixBase = match.prixUnitaireMoyen;
-            updated.prixApresRemise = match.prixUnitaireMoyen;
+          const matchStock = stockItems.find(st => st.nom.toLowerCase().trim() === value.toLowerCase().trim());
+          if (matchStock && matchStock.prixUnitaireMoyen) {
+            updated.prixBase = matchStock.prixUnitaireMoyen;
+            updated.prixApresRemise = matchStock.prixUnitaireMoyen;
+          } else {
+            const matchCatalog = CATALOG_PRESET_ITEMS.find(c => c.nom.toLowerCase().trim() === value.toLowerCase().trim());
+            if (matchCatalog) {
+              updated.prixBase = matchCatalog.prixMoyen;
+              updated.prixApresRemise = matchCatalog.prixMoyen;
+            }
           }
         }
 
@@ -302,7 +309,7 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
             <div className="flex items-center justify-between">
               <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                 <ShoppingCart className="w-4 h-4 text-blue-600" />
-                3. Désignation des Articles / Carrosseries Proposés
+                3. Désignation des Boîtes de Vitesses &amp; Pièces Proposées
               </h4>
               <button
                 type="button"
@@ -343,7 +350,7 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
                           list="proforma-stock-datalist"
                           value={item.produit}
                           onChange={(e) => handleProductChange(item.id, 'produit', e.target.value)}
-                          placeholder="Ex: Caisse frigorifique isolée 4.2m"
+                          placeholder="Ex: Pignon 1ère vitesse, Bague frein molybdène, Synchro, Arbre primaire, Roulement SKF..."
                           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-xs font-bold focus:bg-white focus:border-blue-500"
                         />
                       </div>
@@ -384,8 +391,13 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
             </div>
 
             <datalist id="proforma-stock-datalist">
+              {/* Items from current stock */}
               {stockItems.map(st => (
                 <option key={st.id} value={st.nom} />
+              ))}
+              {/* Detailed parts from catalog */}
+              {CATALOG_PRESET_ITEMS.map(preset => (
+                <option key={preset.id} value={preset.nom} />
               ))}
             </datalist>
           </div>

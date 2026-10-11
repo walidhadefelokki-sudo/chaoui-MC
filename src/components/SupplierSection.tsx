@@ -18,7 +18,7 @@ interface SupplierSectionProps {
   onEditSupplier: (supplier: Supplier) => void;
   onDeleteSupplier: (id: string) => void;
   onToggleDeliveryStatus: (id: string) => void;
-  userRole?: 'admin' | 'commercial' | 'gestionnaire_stock';
+  userRole?: 'admin' | 'commercial';
 }
 
 export default function SupplierSection({
@@ -121,7 +121,7 @@ export default function SupplierSection({
             Gestion des Fournisseurs & Achats Multi-Produits
           </h2>
           <p className="text-sm text-slate-500 leading-tight mt-1">
-            Approvisionnements de matières premières et d'équipements frigorifiques. Les articles s'intègrent automatiquement au stock.
+            Approvisionnements en boîtes de vitesses complètes, pignons, synchros, embrayages et pièces de transmission camions &amp; bus.
           </p>
         </div>
         <button
@@ -340,19 +340,6 @@ export default function SupplierSection({
                       {/* Action buttons */}
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                          {supplier.devis && (
-                            <button
-                              onClick={() => {
-                                const win = window.open();
-                                win?.document.write(`<iframe src="${supplier.devis!.dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                              }}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                              title={`Voir devis: ${supplier.devis.name}`}
-                            >
-                              <FileText className="w-3.5 h-3.5 text-blue-600" />
-                              Devis
-                            </button>
-                          )}
                           <button
                             onClick={() => handleOpenEditForm(supplier)}
                             className="p-2 hover:bg-slate-100 hover:text-slate-700 text-slate-400 rounded-lg transition-colors cursor-pointer"
