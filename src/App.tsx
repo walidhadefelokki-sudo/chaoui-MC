@@ -20,6 +20,7 @@ import StockSection from './components/StockSection';
 import StockHistorySection from './components/StockHistorySection';
 import UserProfileModal from './components/UserProfileModal';
 import LoginScreen from './components/LoginScreen';
+import { GearMaxLogo } from './components/GearMaxLogo';
 import { ChaouiLogo } from './components/ChaouiLogo';
 import { Truck, ShieldAlert, ShoppingBag, Users, LogOut, Shield, Boxes, User as UserIcon, History, Trash2 } from 'lucide-react';
 import ResetDatabaseModal from './components/ResetDatabaseModal';
@@ -47,15 +48,12 @@ export default function App() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (parsed.role === 'admin') {
-          return {
-            username: 'admin',
-            fullName: 'Islam Chaoui',
-            email: parsed.email || 'direction@chaoui-bv.dz',
-            role: 'admin'
-          };
-        }
-        return parsed;
+        return {
+          username: 'admin',
+          fullName: 'Islam Chaoui',
+          email: parsed.email || 'direction@chaoui-bv.dz',
+          role: 'admin' as const
+        };
       } catch (e) {
         return null;
       }
@@ -354,17 +352,17 @@ export default function App() {
       <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
         <div className="w-full px-6 sm:px-8 lg:px-12 h-20 flex flex-col md:flex-row items-center justify-between gap-4 py-2 md:py-0">
           
-          {/* Brand Identity: SARL Chaoui */}
-          <div className="flex items-center gap-3 self-start md:self-center">
-            <div className="w-48 sm:w-56 h-12 flex items-center">
-              <ChaouiLogo width="220" height="58" textColor="#ffffff" subtitleColor="#f59e0b" accentColor="#f59e0b" />
+          {/* Brand Identity: GearMax */}
+          <div className="flex items-center gap-4 self-start md:self-center">
+            <div className="flex items-center py-1">
+              <GearMaxLogo variant="on-dark" className="h-10 sm:h-12 w-auto object-contain drop-shadow" />
             </div>
             <div className="hidden lg:block border-l border-slate-700/60 pl-3">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block leading-tight">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 block leading-tight">
                 Gestion Commerciale &amp; Stocks
               </span>
               <span className="text-[9px] text-amber-400 font-mono font-semibold">
-                Poids Lourds • Boîtes de Vitesses
+                GearMax • Transmissions Poids Lourds
               </span>
             </div>
           </div>
@@ -441,30 +439,15 @@ export default function App() {
                   <UserIcon className="w-3 h-3 text-slate-400 group-hover:text-amber-400 transition-colors" />
                 </div>
                 <div className="flex items-center gap-1 mt-1">
-                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-xs ${
-                    currentUser.role === 'admin'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20'
-                      : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/20'
-                  }`}>
-                    {currentUser.role === 'admin' ? 'Direction (Admin)' : 'Commercial'}
+                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-xs bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Direction Générale
                   </span>
                 </div>
               </div>
             </button>
             <div className="h-6 w-px bg-slate-700/60" />
             
-            {/* Purge Database Button */}
-            {currentUser.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => setIsResetModalOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-700/60 text-red-300 hover:text-white transition-all text-xs font-bold cursor-pointer"
-                title="Vider toutes les données du logiciel"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                <span className="hidden xl:inline text-[11px] font-black uppercase">Vider les données</span>
-              </button>
-            )}
+            
             
             <button
               onClick={handleLogout}
@@ -584,10 +567,10 @@ export default function App() {
         <div className="w-full px-6 sm:px-8 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-3 font-medium">
           <div className="flex items-center gap-1.5 text-slate-600">
             <Truck className="w-4.5 h-4.5 text-slate-400" />
-            <span>© {new Date().getFullYear()} SARL CHAOUI POIDS LOURDS &amp; TRANSMISSIONS. Tous droits réservés.</span>
+            <span>© {new Date().getFullYear()} Chaoui Moundji Islam. Tous droits réservés.</span>
           </div>
           <div className="flex items-center gap-3 font-mono text-xs">
-            <span className="text-slate-500">RC: 21B0073197 • NIF: 002125007319732 • NIS: 002125010026564</span>
+            <span className="text-slate-500">RC: 04/00- 20744945 A 25 • NIF: 19725010758115300400 • NIS: 199725010758126 • ART: 04030052121</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
               Base de Données Synchronisée
             </span>

@@ -8,8 +8,10 @@ import { StockItem, Client, Supplier, User, StockMovement } from '../types';
 import StockExitModal from './StockExitModal';
 import { 
   Package, Boxes, Plus, Search, Edit, Trash2, 
-  MinusCircle, Coins, ShieldCheck, Sparkles, Building2, Tag, DollarSign, Layers
+  MinusCircle, Coins, ShieldCheck, Sparkles, Building2, Tag, DollarSign, Layers,
+  ExternalLink, Copy, Check, Eye, HelpCircle, X
 } from 'lucide-react';
+import { generatePartImageSearchUrl, generatePartWebSearchUrl, buildOptimizedPartQuery } from '../utils/partSearch';
 
 interface StockSectionProps {
   stockItems: StockItem[];
@@ -67,10 +69,27 @@ export default function StockSection({
   const [formArticle, setFormArticle] = useState('');
   const [formReference, setFormReference] = useState('');
   const [formMarque, setFormMarque] = useState('ZF');
-  const [formQuantite, setFormQuantite] = useState<number>(0);
-  const [formPrixAchat, setFormPrixAchat] = useState<number>(0);
-  const [formPrixVente, setFormPrixVente] = useState<number>(0);
+  const [formQuantite, setFormQuantite] = useState<string>('0');
+  const [formPrixAchat, setFormPrixAchat] = useState<string>('0');
+  const [formPrixVente, setFormPrixVente] = useState<string>('0');
+  const [formRechercheUrl, setFormRechercheUrl] = useState('');
   const [formError, setFormError] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Quick Client Counter Part Identifier Modal
+  const [isQuickLookupOpen, setIsQuickLookupOpen] = useState(false);
+  const [quickNom, setQuickNom] = useState('');
+  const [quickRef, setQuickRef] = useState('');
+  const [quickMarque, setQuickMarque] = useState('ZF');
+  const [quickCopied, setQuickCopied] = useState(false);
+
+  // Copy link helper with temporary checkmark feedback
+  const handleCopyLink = (url: string, id: string) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
 
   // 1. Dynamic calculations for stock
   const stockWithCalculations = useMemo(() => {
@@ -80,6 +99,7 @@ export default function StockSection({
       const pVente = item.prixVente ?? 0;
       const ref = item.reference || item.referencePiece || '-';
       const marque = item.marque || 'ZF';
+      const smartUrl = item.rechercheUrl || generatePartImageSearchUrl(item.nom, item.reference || item.referencePiece || '', item.marque);
 
       return {
         ...item,
@@ -88,6 +108,7 @@ export default function StockSection({
         pVente,
         ref,
         marque,
+        smartUrl,
         valeurAchatTotal: currentQty * pAchat,
         valeurVenteTotal: currentQty * pVente
       };
@@ -186,17 +207,19 @@ export default function StockSection({
       setFormArticle(item.nom || '');
       setFormReference(item.reference || item.referencePiece || '');
       setFormMarque(item.marque || 'ZF');
-      setFormQuantite(item.quantite ?? item.quantiteInitiale ?? 0);
-      setFormPrixAchat(item.prixAchat ?? item.prixUnitaireMoyen ?? 0);
-      setFormPrixVente(item.prixVente ?? 0);
+      setFormQuantite(String(item.quantite ?? item.quantiteInitiale ?? 0));
+      setFormPrixAchat(String(item.prixAchat ?? item.prixUnitaireMoyen ?? 0));
+      setFormPrixVente(String(item.prixVente ?? 0));
+      setFormRechercheUrl(item.rechercheUrl || '');
     } else {
       setEditingItem(null);
       setFormArticle('');
       setFormReference('');
       setFormMarque('ZF');
-      setFormQuantite(0);
-      setFormPrixAchat(0);
-      setFormPrixVente(0);
+      setFormQuantite('');
+      setFormPrixAchat('');
+      setFormPrixVente('');
+      setFormRechercheUrl('');
     }
     setFormError('');
     setIsModalOpen(true);
@@ -214,20 +237,27 @@ export default function StockSection({
       return;
     }
 
-    if (formQuantite < 0) {
+    const parsedQuantite = parseInt(formQuantite, 10) || 0;
+    const parsedPrixAchat = parseFloat(formPrixAchat) || 0;
+    const parsedPrixVente = parseFloat(formPrixVente) || 0;
+
+    if (parsedQuantite < 0) {
       setFormError("La quantité ne peut pas être négative.");
       return;
     }
 
-    if (formPrixAchat < 0) {
+    if (parsedPrixAchat < 0) {
       setFormError("Le prix d'achat ne peut pas être négatif.");
       return;
     }
 
-    if (formPrixVente < 0) {
+    if (parsedPrixVente < 0) {
       setFormError("Le prix de vente ne peut pas être négatif.");
       return;
     }
+
+    const autoUrl = generatePartImageSearchUrl(formArticle.trim(), formReference.trim(), formMarque.trim());
+    const finalRechercheUrl = formRechercheUrl.trim() || autoUrl;
 
     const savedItem: StockItem = {
       id: editingItem ? editingItem.id : crypto.randomUUID(),
@@ -235,11 +265,12 @@ export default function StockSection({
       reference: formReference.trim(),
       referencePiece: formReference.trim(),
       marque: formMarque.trim() || 'ZF',
-      quantite: formQuantite,
-      quantiteInitiale: formQuantite,
-      prixAchat: formPrixAchat,
-      prixVente: formPrixVente,
-      prixUnitaireMoyen: formPrixAchat,
+      quantite: parsedQuantite,
+      quantiteInitiale: parsedQuantite,
+      prixAchat: parsedPrixAchat,
+      prixVente: parsedPrixVente,
+      prixUnitaireMoyen: parsedPrixAchat,
+      rechercheUrl: finalRechercheUrl,
       type: 'matiere_premiere',
       unite: 'Unités',
       createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
@@ -249,13 +280,13 @@ export default function StockSection({
       onEditStockItem(savedItem);
     } else {
       onAddStockItem(savedItem);
-      if (formQuantite > 0 && onAddStockMovement) {
+      if (parsedQuantite > 0 && onAddStockMovement) {
         onAddStockMovement({
           id: crypto.randomUUID(),
           typeMouvement: 'ENTREE',
           date: new Date().toISOString(),
           produit: savedItem.nom,
-          quantite: formQuantite,
+          quantite: parsedQuantite,
           unite: 'Unités',
           typeArticle: 'matiere_premiere',
           nomUtilisateur: currentUser?.fullName || 'Islam Chaoui',
@@ -291,6 +322,22 @@ export default function StockSection({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setQuickNom('');
+              setQuickRef('');
+              setQuickMarque('ZF');
+              setQuickCopied(false);
+              setIsQuickLookupOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+            title="Recherche Google optimisée pour voir immédiatement la pièce demandée par un client"
+          >
+            <Search className="w-4 h-4 text-blue-300" />
+            <span>Identifier Pièce Client 🔍</span>
+          </button>
+
           <button
             type="button"
             onClick={handleOpenExitModal}
@@ -408,13 +455,14 @@ export default function StockSection({
                 <th className="px-5 py-3.5 text-center">Quantité</th>
                 <th className="px-5 py-3.5 text-right">Prix d'Achat</th>
                 <th className="px-5 py-3.5 text-right">Prix de Vente</th>
+                <th className="px-5 py-3.5 text-center">Lien Image Pièce</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-150">
               {filteredStock.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
                     <Boxes className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                     <p className="text-sm font-black text-slate-700">Aucun produit en stock</p>
                     <p className="text-xs text-slate-500 font-medium mt-1">
@@ -481,6 +529,38 @@ export default function StockSection({
                     {/* 6. Prix de vente */}
                     <td className="px-5 py-4 text-right font-mono text-xs font-black text-emerald-700">
                       {formatCurrency(item.pVente)}
+                    </td>
+
+                    {/* 7. Lien Image Pièce Généré Automatiquement */}
+                    <td className="px-5 py-4 text-center">
+                      {item.smartUrl ? (
+                        <div className="inline-flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-300 rounded-lg p-1 transition-all">
+                          <a
+                            href={item.smartUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-amber-950 hover:text-amber-800 transition-colors"
+                            title={`Rechercher l'image de "${item.nom}" (Réf: ${item.ref}) sur Google Images`}
+                          >
+                            <Search className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Voir Pièce ↗</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(item.smartUrl, item.id)}
+                            className="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-white/80 transition-colors cursor-pointer"
+                            title="Copier le lien direct Google"
+                          >
+                            {copiedId === item.id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-mono">-</span>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -594,16 +674,71 @@ export default function StockSection({
                 </div>
               </div>
 
+              {/* Smart Auto-Generated Google Image Search Link */}
+              <div className="p-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border border-amber-300/80 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-amber-950 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                    Lien Visuel Intelligent (Google Images)
+                  </span>
+                  <span className="text-[9px] font-black bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Généré Automatiquement
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Généré en direct pour voir et vérifier la pièce exacte (photos constructeurs, catalogues Euroricambi/ZF/CEI, éclatés).
+                </p>
+                {generatePartImageSearchUrl(formArticle, formReference, formMarque) ? (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generatePartImageSearchUrl(formArticle, formReference, formMarque)}
+                        className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-[10px] font-mono text-slate-600 truncate select-all"
+                      />
+                      <a
+                        href={generatePartImageSearchUrl(formArticle, formReference, formMarque)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-lg shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+                        title="Ouvrir la recherche d'images dans un nouvel onglet"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        Voir l'image ↗
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(generatePartImageSearchUrl(formArticle, formReference, formMarque), 'modal')}
+                        className="p-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                        title="Copier le lien de recherche"
+                      >
+                        {copiedId === 'modal' ? (
+                          <Check className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400 italic">
+                    Renseignez le nom de l'article ou la référence pour générer le lien de recherche visuel.
+                  </p>
+                )}
+              </div>
+
               {/* 4. Quantité */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                   4. Quantité en Stock
                 </label>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
                   value={formQuantite}
-                  onChange={(e) => setFormQuantite(Math.max(0, parseInt(e.target.value) || 0))}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setFormQuantite(e.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="0"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
                 />
@@ -616,10 +751,11 @@ export default function StockSection({
                     5. Prix d'Achat (DA)
                   </label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={formPrixAchat}
-                    onChange={(e) => setFormPrixAchat(Math.max(0, parseFloat(e.target.value) || 0))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormPrixAchat(e.target.value.replace(/[^0-9.]/g, ''))}
                     placeholder="0"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   />
@@ -630,10 +766,11 @@ export default function StockSection({
                     6. Prix de Vente (DA)
                   </label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={formPrixVente}
-                    onChange={(e) => setFormPrixVente(Math.max(0, parseFloat(e.target.value) || 0))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormPrixVente(e.target.value.replace(/[^0-9.]/g, ''))}
                     placeholder="0"
                     className="w-full px-3.5 py-2.5 bg-emerald-50/50 border border-emerald-250 rounded-xl text-emerald-950 text-xs font-mono font-bold focus:bg-white focus:border-emerald-500 focus:outline-hidden"
                   />
@@ -714,6 +851,185 @@ export default function StockSection({
               >
                 Supprimer Définitivement
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Counter Client Part Identifier Modal */}
+      {isQuickLookupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full my-auto overflow-hidden animate-in fade-in duration-150">
+            {/* Modal Header */}
+            <div className="bg-slate-950 text-white p-5 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-tight">
+                    Identification Immédiate de Pièce Client
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Saisissez le nom et la référence donnés par le client pour voir la photo.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickLookupOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-left">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                  Nom / Désignation donnée par le client
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={quickNom}
+                  onChange={(e) => setQuickNom(e.target.value)}
+                  placeholder="Ex: Pignon 3ème, Synchroniseur, Arbre primaire, Fourchette..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Référence pièce / OEM
+                  </label>
+                  <input
+                    type="text"
+                    value={quickRef}
+                    onChange={(e) => setQuickRef(e.target.value)}
+                    placeholder="Ex: 1315 304 022, 000 262 58 23..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Marque (Constructeur)
+                  </label>
+                  <input
+                    type="text"
+                    value={quickMarque}
+                    onChange={(e) => setQuickMarque(e.target.value)}
+                    placeholder="Ex: ZF, Eaton, Mercedes, Volvo..."
+                    list="brand-suggestions-quick"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
+                  />
+                  <datalist id="brand-suggestions-quick">
+                    {COMMON_BRANDS.map(b => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+
+              {/* Live Result Box */}
+              {generatePartImageSearchUrl(quickNom, quickRef, quickMarque) ? (
+                <div className="p-4 bg-gradient-to-br from-blue-500/10 via-amber-500/10 to-slate-50 border border-blue-300/80 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-blue-950 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                      Lien Optimisé Prêt pour Visualisation
+                    </span>
+                    <span className="text-[9px] font-mono font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">
+                      Recherche Intelligente
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={generatePartImageSearchUrl(quickNom, quickRef, quickMarque)}
+                      className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-[10px] font-mono text-slate-700 truncate select-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatePartImageSearchUrl(quickNom, quickRef, quickMarque));
+                        setQuickCopied(true);
+                        setTimeout(() => setQuickCopied(false), 2000);
+                      }}
+                      className="p-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      title="Copier le lien"
+                    >
+                      {quickCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <a
+                      href={generatePartImageSearchUrl(quickNom, quickRef, quickMarque)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wide rounded-xl shadow-xs transition-all cursor-pointer"
+                    >
+                      <Search className="w-4 h-4" />
+                      Ouvrir Google Images ↗
+                    </a>
+
+                    <a
+                      href={generatePartWebSearchUrl(quickNom, quickRef, quickMarque)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4 text-slate-300" />
+                      Documentation Web ↗
+                    </a>
+                  </div>
+
+                  {/* Option to create stock item from this query */}
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500 font-medium">Vous souhaitez enregistrer cette référence ?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsQuickLookupOpen(false);
+                        setEditingItem(null);
+                        setFormArticle(quickNom.trim());
+                        setFormReference(quickRef.trim());
+                        setFormMarque(quickMarque.trim() || 'ZF');
+                        setFormQuantite('0');
+                        setFormPrixAchat('0');
+                        setFormPrixVente('0');
+                        setFormRechercheUrl(generatePartImageSearchUrl(quickNom, quickRef, quickMarque));
+                        setIsModalOpen(true);
+                      }}
+                      className="text-xs font-black text-amber-700 hover:text-amber-900 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Ajouter au stock
+                    </button>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center text-slate-400 text-xs font-medium">
+                  Saisissez au moins un nom d'article ou une référence pour générer instantanément le lien vers l'image.
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickLookupOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Fermer
+                </button>
+              </div>
+
             </div>
           </div>
         </div>

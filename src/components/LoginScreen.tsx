@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { ChaouiLogo } from './ChaouiLogo';
-import { Lock, User as UserIcon, ShieldAlert, Sparkles, AlertCircle } from 'lucide-react';
+import { GearMaxLogo } from './GearMaxLogo';
+import { Lock, User as UserIcon, ShieldAlert, Sparkles, AlertCircle, Shield } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
@@ -12,24 +12,14 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Authorized accounts (Admin and Commercial only)
-  const ACCOUNTS = {
-    admin: {
-      username: 'admin',
-      email: 'direction@chaoui-bv.dz',
-      fullName: 'Islam Chaoui',
-      password: 'admin',
-      role: 'admin' as const,
-      description: 'Direction Générale (Accès Total, Gestion Commerciale & Stocks)'
-    },
-    commercial: {
-      username: 'commercial',
-      email: 'commercial@chaoui-bv.dz',
-      fullName: 'Yacine Djebbar',
-      password: 'commercial',
-      role: 'commercial' as const,
-      description: 'Service Ventes & Clientèle (Saisie, Devis, Proformas & Facturation)'
-    }
+  // Authorized account: Direction Générale exclusively
+  const ADMIN_ACCOUNT = {
+    username: 'admin',
+    email: 'direction@chaoui-bv.dz',
+    fullName: 'Islam Chaoui',
+    password: 'admin',
+    role: 'admin' as const,
+    description: 'Direction Générale (Accès Total, Gestion Commerciale & Stocks)'
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,15 +36,10 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       console.error(e);
     }
 
-    const adminUser = customCreds.admin?.username || ACCOUNTS.admin.username;
-    const adminPass = customCreds.admin?.password || ACCOUNTS.admin.password;
-    const adminName = customCreds.admin?.fullName || ACCOUNTS.admin.fullName;
-    const adminEmail = customCreds.admin?.email || ACCOUNTS.admin.email;
-
-    const commUser = customCreds.commercial?.username || ACCOUNTS.commercial.username;
-    const commPass = customCreds.commercial?.password || ACCOUNTS.commercial.password;
-    const commName = customCreds.commercial?.fullName || ACCOUNTS.commercial.fullName;
-    const commEmail = customCreds.commercial?.email || ACCOUNTS.commercial.email;
+    const adminUser = customCreds.admin?.username || ADMIN_ACCOUNT.username;
+    const adminPass = customCreds.admin?.password || ADMIN_ACCOUNT.password;
+    const adminName = customCreds.admin?.fullName || ADMIN_ACCOUNT.fullName;
+    const adminEmail = customCreds.admin?.email || ADMIN_ACCOUNT.email;
 
     if (trimmedUser === adminUser.toLowerCase() || trimmedUser === adminEmail.toLowerCase() || trimmedUser === 'admin') {
       if (password === adminPass) {
@@ -66,51 +51,40 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         });
         return;
       } else {
-        setErrorMsg('Mot de passe incorrect pour le compte Administrateur.');
+        setErrorMsg('Mot de passe incorrect pour le compte Direction Générale.');
         return;
       }
     }
 
-    if (trimmedUser === commUser.toLowerCase() || trimmedUser === commEmail.toLowerCase() || trimmedUser === 'commercial') {
-      if (password === commPass) {
-        onLogin({
-          username: commUser,
-          fullName: commName,
-          email: commEmail,
-          role: 'commercial'
-        });
-        return;
-      } else {
-        setErrorMsg('Mot de passe incorrect pour le compte Commercial.');
-        return;
-      }
+    if (trimmedUser === 'commercial' || trimmedUser.includes('commercial')) {
+      setErrorMsg('Ce compte a été désactivé. Seul le compte Direction Générale est autorisé à accéder au système.');
+      return;
     }
 
-    setErrorMsg('Compte inconnu. Utilisez le compte admin ou commercial.');
+    setErrorMsg('Compte non reconnu. Veuillez vous connecter avec le compte Direction Générale.');
   };
 
-  const handlePrefill = (type: 'admin' | 'commercial') => {
-    const selected = ACCOUNTS[type];
-    setUsername(selected.username);
-    setPassword(selected.password);
+  const handlePrefill = () => {
+    setUsername(ADMIN_ACCOUNT.username);
+    setPassword(ADMIN_ACCOUNT.password);
     setErrorMsg(null);
   };
 
   return (
     <div id="login-container" className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
-      {/* Dynamic Background Accents */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Background Ambience Elements */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Login Box */}
       <div id="login-card" className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 z-10 transition-all duration-200">
         
         {/* Logo and Brand Header */}
         <div className="flex flex-col items-center text-center mb-6 select-none">
-          {/* Custom CHAOUI Wordmark Logo */}
-          <div className="h-16 w-auto flex items-center justify-center mb-3">
-            <ChaouiLogo className="h-full w-auto" />
+          {/* Official GearMax Logo without white background */}
+          <div className="flex items-center justify-center mb-4 py-1">
+            <GearMaxLogo variant="on-dark" className="h-16 sm:h-20 w-auto object-contain drop-shadow-xl" />
           </div>
 
           <span className="inline-flex items-center text-[10px] font-black uppercase text-[#f59e0b] border border-[#f59e0b]/30 px-3.5 py-1 rounded-full tracking-wider bg-[#f59e0b]/10">
@@ -122,40 +96,25 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           </p>
         </div>
 
-        {/* Demo Accounts Quick Selection (Admin and Commercial only) */}
+        {/* Direction Générale Quick Selection Button */}
         <div className="mb-6 p-3.5 bg-slate-950/80 rounded-xl border border-slate-800/80">
           <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5" />
-            Sélectionnez l'un des comptes autorisés :
+            Compte Autorisé — Direction Générale :
           </span>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              type="button"
-              onClick={() => handlePrefill('admin')}
-              className="flex items-start text-left p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-900/90 transition-all cursor-pointer group"
-            >
-              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-xs font-black mr-2.5 mt-0.5 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">
-                A
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-200 group-hover:text-amber-400 transition-colors">Direction Générale (Admin)</p>
-                <p className="text-[10px] text-slate-400 truncate font-mono">Identifiants: admin / admin</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePrefill('commercial')}
-              className="flex items-start text-left p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-900/90 transition-all cursor-pointer group"
-            >
-              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-xs font-black mr-2.5 mt-0.5 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all">
-                C
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-200 group-hover:text-amber-400 transition-colors">Responsable Commercial (Ventes &amp; Devis)</p>
-                <p className="text-[10px] text-slate-400 truncate font-mono">Identifiants: commercial / commercial</p>
-              </div>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handlePrefill}
+            className="w-full flex items-center p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-900/90 transition-all cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-xs font-black mr-3 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all flex-shrink-0">
+              <Shield className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 text-left">
+              <p className="text-xs font-bold text-slate-200 group-hover:text-amber-400 transition-colors">Direction Générale (Islam Chaoui)</p>
+              <p className="text-[10px] text-slate-400 truncate font-mono">Identifiants par défaut : admin / admin</p>
+            </div>
+          </button>
         </div>
 
         {/* Credentials Form */}
@@ -182,7 +141,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin ou commercial"
+                placeholder="Identifiant Direction Générale (ex: admin)"
                 className="w-full pl-8 pr-2.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-amber-500 focus:outline-hidden transition-all shadow-inner placeholder:text-slate-600 font-medium"
               />
             </div>
@@ -209,14 +168,14 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             type="submit"
             className="w-full mt-2 py-2.5 px-4 text-xs font-black uppercase text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-lg shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer font-bold tracking-wide"
           >
-            Se Connecter au Portail Chaoui
+            Se Connecter à l'Espace Direction
           </button>
         </form>
 
         <div className="mt-6 pt-4 border-t border-slate-800/60 text-center">
           <p className="text-[9px] text-slate-500 font-mono flex items-center justify-center gap-1">
             <ShieldAlert className="w-3 h-3 text-slate-600" />
-            Accès sécurisé réservé au personnel de SARL CHAOUI
+            Accès sécurisé réservé à la Direction Générale — Chaoui Moundji Islam
           </p>
         </div>
 
@@ -224,7 +183,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
       {/* Decorative footer */}
       <p className="text-[10px] text-slate-600 font-mono mt-4">
-        © 2026 CHAOUI — Boîtes de Vitesses &amp; Pièces Poids Lourds
+        © {new Date().getFullYear()} GearMax — Chaoui Moundji Islam. Tous droits réservés.
       </p>
     </div>
   );

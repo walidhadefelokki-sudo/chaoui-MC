@@ -410,7 +410,7 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                 <div className="flex items-center gap-2">
                   <Printer className="w-5 h-5 text-amber-400" />
                   <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest">
-                    Documents Officiels Chaoui ERP
+                    Documents Officiels GearMax
                   </h4>
                 </div>
                 <span className="text-[9px] font-extrabold uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 font-mono">
@@ -419,7 +419,7 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                Générez les documents comptables et logistiques officiels avec le logo wordmark et les identifiants de la SARL Chaoui Poids Lourds.
+                Générez les documents comptables et logistiques officiels avec le logo officiel GearMax et vos coordonnées réelles.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">

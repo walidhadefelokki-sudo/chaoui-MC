@@ -39,8 +39,7 @@ export default function UserProfileModal({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Admin Account Management State
-  const [selectedManagedRole, setSelectedManagedRole] = useState<'admin' | 'commercial'>('commercial');
+  // Admin Account Management State (Direction Générale exclusively)
   const [managedFullName, setManagedFullName] = useState('');
   const [managedUsername, setManagedUsername] = useState('');
   const [managedEmail, setManagedEmail] = useState('');
@@ -53,31 +52,33 @@ export default function UserProfileModal({
   // Quick Preferences
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  // Default accounts reference
-  const DEFAULT_ACCOUNTS = {
-    admin: { username: 'admin', fullName: 'Islam Chaoui', email: 'direction@chaoui-bv.dz', password: 'admin', label: 'Direction Générale (Admin)' },
-    commercial: { username: 'commercial', fullName: 'Yacine Djebbar', email: 'commercial@chaoui-bv.dz', password: 'commercial', label: 'Commercial (Service Ventes)' }
+  // Default account reference
+  const DEFAULT_ACCOUNT = {
+    username: 'admin',
+    fullName: 'Islam Chaoui',
+    email: 'direction@chaoui-bv.dz',
+    password: 'admin',
+    label: 'Direction Générale (Admin)'
   };
 
   // Helper to load managed account state
-  const loadManagedAccount = (role: 'admin' | 'commercial') => {
+  const loadManagedAccount = () => {
     try {
       const storedCreds = JSON.parse(localStorage.getItem('chaoui_custom_creds') || '{}');
-      const accountCreds = storedCreds[role] || {};
-      const defaultAcc = DEFAULT_ACCOUNTS[role];
+      const accountCreds = storedCreds['admin'] || {};
 
-      setManagedFullName(accountCreds.fullName || defaultAcc.fullName);
-      setManagedUsername(accountCreds.username || defaultAcc.username);
-      setManagedEmail(accountCreds.email || defaultAcc.email);
-      setManagedPassword(accountCreds.password || defaultAcc.password);
+      setManagedFullName(accountCreds.fullName || DEFAULT_ACCOUNT.fullName);
+      setManagedUsername(accountCreds.username || DEFAULT_ACCOUNT.username);
+      setManagedEmail(accountCreds.email || DEFAULT_ACCOUNT.email);
+      setManagedPassword(accountCreds.password || DEFAULT_ACCOUNT.password);
     } catch (err) {
       console.error(err);
     }
   };
 
   useEffect(() => {
-    loadManagedAccount(selectedManagedRole);
-  }, [selectedManagedRole]);
+    loadManagedAccount();
+  }, []);
 
   // Save General Profile Info
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -165,58 +166,32 @@ export default function UserProfileModal({
 
     try {
       const storedCreds = JSON.parse(localStorage.getItem('chaoui_custom_creds') || localStorage.getItem('carpole_custom_creds') || '{}');
-      storedCreds[selectedManagedRole] = {
+      storedCreds['admin'] = {
         fullName: managedFullName.trim(),
         username: managedUsername.trim().toLowerCase(),
         email: managedEmail.trim(),
-        password: managedPassword || DEFAULT_ACCOUNTS[selectedManagedRole].password
+        password: managedPassword || DEFAULT_ACCOUNT.password
       };
+      // Remove any commercial account
+      delete storedCreds['commercial'];
       localStorage.setItem('chaoui_custom_creds', JSON.stringify(storedCreds));
 
-      // If updating current logged in user, update current user state too
-      if (selectedManagedRole === currentUser.role) {
-        onUpdateUser({
-          ...currentUser,
-          fullName: managedFullName.trim(),
-          username: managedUsername.trim().toLowerCase(),
-          email: managedEmail.trim()
-        });
-      }
+      onUpdateUser({
+        ...currentUser,
+        fullName: managedFullName.trim(),
+        username: managedUsername.trim().toLowerCase(),
+        email: managedEmail.trim()
+      });
 
       setStatusMessage({
         type: 'success',
-        text: `Le compte ${DEFAULT_ACCOUNTS[selectedManagedRole].label} a été mis à jour avec succès ! Le nouveau mot de passe est maintenant actif.`
+        text: `Les identifiants de la Direction Générale ont été mis à jour avec succès !`
       });
       setTimeout(() => setStatusMessage(null), 4500);
     } catch (err) {
       console.error(err);
       setStatusMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement des identifiants.' });
     }
-  };
-
-  // Role Toggle Simulation
-  const handleToggleRole = () => {
-    const roles: ('admin' | 'commercial')[] = ['admin', 'commercial'];
-    const nextIndex = (roles.indexOf(currentUser.role as 'admin' | 'commercial') + 1) % roles.length;
-    const newRole = roles[nextIndex];
-    const roleNames = {
-      admin: 'Farid Bouchaib',
-      commercial: 'Yacine Djebbar'
-    };
-    const updated: User = {
-      ...currentUser,
-      role: newRole,
-      fullName: roleNames[newRole],
-      email: `${newRole}@chaoui-bv.dz`
-    };
-    onUpdateUser(updated);
-    setStatusMessage({ 
-      type: 'success', 
-      text: `Rôle basculé avec succès en Mode ${
-        newRole === 'admin' ? 'Direction (Admin)' : 'Commercial'
-      }.` 
-    });
-    setTimeout(() => setStatusMessage(null), 3500);
   };
 
   // Export Database JSON Backup
@@ -261,17 +236,13 @@ export default function UserProfileModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-white">{currentUser.fullName}</h2>
-                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-sm ${
-                  currentUser.role === 'admin'
-                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                    : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                }`}>
-                  {currentUser.role === 'admin' ? 'Direction (Admin)' : 'Commercial'}
+                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-sm bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  Direction Générale
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1 font-mono">{currentUser.email}</p>
               <p className="text-[10px] text-amber-400/90 font-bold mt-0.5 flex items-center gap-1">
-                <Building className="w-3 h-3 text-amber-400" /> CHAOUI POIDS LOURDS &amp; TRANSMISSIONS • ALGERIA
+                <Building className="w-3 h-3 text-amber-400" /> GEARMAX • TRANSMISSIONS &amp; POIDS LOURDS
               </p>
             </div>
           </div>
@@ -315,7 +286,7 @@ export default function UserProfileModal({
               onClick={() => { 
                 setActiveTab('accounts'); 
                 setStatusMessage(null); 
-                loadManagedAccount(selectedManagedRole); 
+                loadManagedAccount(); 
               }}
               className={`px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border-t border-x whitespace-nowrap ${
                 activeTab === 'accounts'
@@ -324,7 +295,7 @@ export default function UserProfileModal({
               }`}
             >
               <Users className="w-4 h-4 text-amber-500" />
-              Gestion des Comptes & Mots de Passe (Admin)
+              Sécurité & Accès Direction (Admin)
             </button>
           )}
 
@@ -507,51 +478,22 @@ export default function UserProfileModal({
               <div className="bg-amber-500/10 border border-amber-300 p-4 rounded-xl text-xs text-slate-800">
                 <p className="font-extrabold text-amber-950 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-amber-600" />
-                  Gestion de la Sécurité & Mots de Passe Utilisateurs
+                  Gestion des Accès — Compte Unique Direction Générale
                 </p>
                 <p className="text-[11px] text-slate-600 mt-1">
-                  En tant qu'administrateur, vous pouvez consulter, modifier les informations et réinitialiser directement le mot de passe de tous les autres comptes d'accès au système.
+                  Le système est configuré pour l'usage exclusif de la Direction Générale. Vous pouvez modifier ici votre nom, identifiant de connexion et mot de passe d'accès.
                 </p>
               </div>
 
-              {/* Role selector sub-tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => { setSelectedManagedRole('commercial'); loadManagedAccount('commercial'); setStatusMessage(null); }}
-                  className={`px-3 py-2.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    selectedManagedRole === 'commercial'
-                      ? 'bg-white text-slate-900 shadow-xs border border-slate-250'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Commercial (Ventes)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setSelectedManagedRole('admin'); loadManagedAccount('admin'); setStatusMessage(null); }}
-                  className={`px-3 py-2.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    selectedManagedRole === 'admin'
-                      ? 'bg-white text-slate-900 shadow-xs border border-slate-250'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <Shield className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Direction (Admin)</span>
-                </button>
-              </div>
-
-              {/* Form to update selected account */}
+              {/* Form to update Direction Générale account */}
               <form onSubmit={handleSaveManagedAccount} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                   <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <Key className="w-4 h-4 text-amber-500" />
-                    Modification : {DEFAULT_ACCOUNTS[selectedManagedRole].label}
+                    Identifiants de la Direction Générale
                   </span>
-                  <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md border border-amber-250">
-                    ID Rôle: {selectedManagedRole}
+                  <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-md border border-amber-250">
+                    Accès Exclusif
                   </span>
                 </div>
 
@@ -642,29 +584,25 @@ export default function UserProfileModal({
               </span>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Action 1: Switch Demo Role */}
-                <button
-                  type="button"
-                  onClick={handleToggleRole}
-                  className="p-4 bg-slate-50 border border-slate-200 hover:border-amber-500/50 hover:bg-amber-50/30 rounded-xl text-left transition-all group cursor-pointer flex flex-col justify-between"
-                >
+                {/* Action 1: Statut Direction Générale */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left flex flex-col justify-between">
                   <div className="flex items-center justify-between">
-                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                      <RefreshCw className="w-4 h-4" />
+                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
+                      <Shield className="w-4 h-4" />
                     </div>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                      Simulation
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 font-bold">
+                      Privilèges Totaux
                     </span>
                   </div>
                   <div className="mt-3">
-                    <h4 className="text-xs font-black text-slate-800 group-hover:text-amber-600 transition-colors">
-                      Bascule de Rôle Utilisateur
+                    <h4 className="text-xs font-black text-slate-800">
+                      Direction Générale
                     </h4>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      Passez du mode {currentUser.role === 'admin' ? 'Direction (Admin)' : 'Commercial'} vers {currentUser.role === 'admin' ? 'Commercial' : 'Direction (Admin)'} pour tester les autorisations.
+                      Compte unique autorisé. Contrôle complet sur toutes les fonctionnalités et suppressions.
                     </p>
                   </div>
-                </button>
+                </div>
 
                 {/* Action 2: Backup Data */}
                 <button
@@ -746,35 +684,6 @@ export default function UserProfileModal({
                     </p>
                   </div>
                 </button>
-
-                {/* Action 5: Reset all data (Admin only or user requested) */}
-                {onRequestResetDatabase && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onRequestResetDatabase();
-                    }}
-                    className="p-4 bg-red-50/70 border border-red-250 hover:border-red-400 hover:bg-red-100/50 rounded-xl text-left transition-all group cursor-pointer flex flex-col justify-between sm:col-span-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="p-2 rounded-lg bg-red-500/10 text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </div>
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-200 text-red-900 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> Remise à Zéro
-                      </span>
-                    </div>
-                    <div className="mt-3">
-                      <h4 className="text-xs font-black text-red-950 transition-colors">
-                        Vider toutes les données du logiciel
-                      </h4>
-                      <p className="text-[10px] text-red-700 mt-0.5 font-medium">
-                        Supprime immédiatement tous les clients, fournisseurs, stock, historiques et factures proformas enregistrés.
-                      </p>
-                    </div>
-                  </button>
-                )}
               </div>
             </div>
           )}

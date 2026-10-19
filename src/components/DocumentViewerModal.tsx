@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Client } from '../types';
-import { ChaouiLogo } from './ChaouiLogo';
+import { GearMaxLogo } from './GearMaxLogo';
 import { Printer, X, FileText, CheckCircle2, Truck, FileCheck, DollarSign, Building2, Calendar, ShieldCheck, Factory, Layers, Info, Banknote, CreditCard } from 'lucide-react';
 
 export type DocumentType = 'facture' | 'bon_commande' | 'bon_livraison';
@@ -314,27 +314,29 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
           {/* Header Section: Logo & Company Address */}
           <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-6 border-b-2 border-slate-900">
             
-            {/* Left: Official Chaoui Wordmark Logo & Subtitle */}
+            {/* Left: Official GearMax Logo & Coordonnées */}
             <div className="space-y-2 max-w-sm">
-              <div className="w-56 h-16 flex items-center">
-                <ChaouiLogo width="240" height="65" textColor="#0f172a" subtitleColor="#d97706" />
+              <div className="w-64 sm:w-72 h-20 flex items-center mb-1">
+                <GearMaxLogo className="h-20 w-auto object-contain" />
               </div>
               <div className="text-[11px] text-slate-600 font-medium leading-relaxed pt-1">
-                <p className="font-black text-slate-900 text-xs uppercase tracking-wide">SARL CHAOUI POIDS LOURDS &amp; TRANSMISSIONS</p>
-                <p className="text-[10px] text-slate-500 font-medium pb-0.5">Spécialiste Boîtes de Vitesses &amp; Pièces de Rechange Camions et Bus</p>
-                <p><strong className="text-slate-800 font-bold">Zone d'Activité :</strong> Constantine / Alger, Algérie</p>
-                <p><strong className="text-slate-800 font-bold">Téléphone &amp; WhatsApp :</strong> 0770 97 32 53 / 0770 97 32 03</p>
-                <p><strong className="text-slate-800 font-bold">Email de contact :</strong> contact@chaoui-transmissions.dz</p>
-                <p><strong className="text-slate-800 font-bold">Web :</strong> www.chaoui-transmissions.dz</p>
+                <p className="font-black text-slate-900 text-sm uppercase tracking-wide">Chaoui Moundji Islam</p>
+                <p className="text-[10px] text-slate-700 font-medium pb-0.5 whitespace-pre-line">
+                  CITE 90 LOGTS LOT 03 BT N: 04 RDC LOCAUX 23/24
+                  Ain mlila/ oum elbouaghi
+                </p>
+                <p><strong className="text-slate-800 font-bold">Téléphone &amp; WhatsApp :</strong> 0792 50 78 89</p>
+                <p><strong className="text-slate-800 font-bold">Email de contact :</strong> islamchaoui56@gmail.com</p>
               </div>
             </div>
 
             {/* Right: Company Fiscal Registration Box */}
             <div className="text-right text-[11px] font-mono text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200 min-w-[240px] space-y-1">
               <p className="font-extrabold text-slate-900 text-xs border-b border-slate-200 pb-1 mb-1 font-sans uppercase">Identifiants Légaux</p>
-              <p><span className="text-slate-500 font-sans">N° RC :</span> 21B0073197</p>
-              <p><span className="text-slate-500 font-sans">N° NIF :</span> 002125007319732</p>
-              <p><span className="text-slate-500 font-sans">N° NIS :</span> 002125010026564</p>
+              <p><span className="text-slate-500 font-sans">N° RC :</span> 04/00- 20744945 A 25</p>
+              <p><span className="text-slate-500 font-sans">N° NIF :</span> 19725010758115300400</p>
+              <p><span className="text-slate-500 font-sans">N° NIS :</span> 199725010758126</p>
+              <p><span className="text-slate-500 font-sans">N° ART :</span> 04030052121</p>
             </div>
           </div>
 
@@ -449,7 +451,7 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
                           • Étape atelier transmission : <span className="uppercase text-purple-900 font-extrabold">{client.etapeCommande.replace('_', ' ')}</span>
                         </p>
                       )}
-                      <p className="text-[11px] text-slate-500 mt-0.5">Pièces conformes aux spécifications constructeurs d'origine CHAOUI.</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Pièces conformes aux spécifications constructeurs d'origine GearMax.</p>
                     </td>
                     <td className="py-3.5 px-4 text-center border-r border-slate-200 font-bold">
                       {client.segment === 'bus' ? (
@@ -590,7 +592,7 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
           <div className="mt-12 pt-6 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-xs">
             <div className="space-y-16">
               <p className="font-black text-slate-900 uppercase tracking-wider text-[11px]">
-                Pour la SARL CHAOUI POIDS LOURDS &amp; TRANSMISSIONS
+                Pour Chaoui Moundji Islam
               </p>
               <div className="text-[10px] text-slate-400 italic">
                 (Cachet et signature autorisés)
@@ -609,7 +611,7 @@ export default function DocumentViewerModal({ client, initialType = 'facture', o
 
           {/* Footer watermark notice */}
           <div className="mt-10 pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400 font-mono">
-            SARL CHAOUI — Capital Social : 50.000.000 DA — Spécialiste Boîtes de Vitesses &amp; Pièces Poids Lourds — {new Date().toLocaleDateString('fr-DZ')}
+            Chaoui Moundji Islam — RC: 04/00- 20744945 A 25 — NIF: 19725010758115300400 — NIS: 199725010758126 — ART: 04030052121 — {new Date().toLocaleDateString('fr-DZ')}
           </div>
 
         </div>

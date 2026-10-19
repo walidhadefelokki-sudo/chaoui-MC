@@ -6,7 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { Client, AttachedFile, StockItem, Supplier, ClientType, DetailVente, ClientProductItem } from '../types';
 import { CATEGORIES_BV, CATALOG_PRESET_ITEMS } from '../lib/gearboxCatalog';
-import { X, AlertCircle, ShoppingCart, Banknote, CreditCard, Wrench, Package, Sparkles } from 'lucide-react';
+import { X, AlertCircle, ShoppingCart, Banknote, CreditCard, Wrench, Package, Sparkles, Search } from 'lucide-react';
+import { generatePartImageSearchUrl } from '../utils/partSearch';
 
 interface ClientFormModalProps {
   client: Client | null;
@@ -480,6 +481,20 @@ export default function ClientFormModal({
                               <span className="text-[9px] font-mono text-slate-500 block">
                                 Stock actuel disponible : <strong>{availableStock}</strong>
                               </span>
+                            )}
+                            {prod.produit && prod.produit.trim().length > 2 && (
+                              <div className="pt-0.5">
+                                <a
+                                  href={generatePartImageSearchUrl(prod.produit, '')}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 hover:text-amber-900 transition-colors"
+                                  title="Voir les photos de cette pièce sur Google Images"
+                                >
+                                  <Search className="w-3 h-3 text-amber-600" />
+                                  <span>Voir photo de la pièce ↗</span>
+                                </a>
+                              </div>
                             )}
                           </div>
 

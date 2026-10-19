@@ -160,7 +160,7 @@ export default function StockHistorySection({
               quantite: p.quantite,
               unite: 'Unités',
               typeArticle: 'produit_fini',
-              nomUtilisateur: 'Commercial',
+              nomUtilisateur: 'Direction Générale',
               tierNom: c.nomPrenom || 'Client',
               motif: `Vente Client (${c.detailVente || 'Commande'})`,
               source: 'CLIENT',
@@ -760,11 +760,12 @@ export default function StockHistorySection({
                     Quantité *
                   </label>
                   <input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
                     required
                     value={formQuantite}
-                    onChange={(e) => setFormQuantite(Math.max(1, parseInt(e.target.value) || 1))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormQuantite(Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1))}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-slate-900 text-xs font-mono font-bold focus:bg-white focus:border-amber-500 focus:outline-hidden"
                   />
                 </div>

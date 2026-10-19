@@ -160,6 +160,8 @@ export interface StockItem {
   quantite: number; // Quantité en stock
   prixAchat: number; // Prix d'achat en DA
   prixVente: number; // Prix de vente en DA
+  rechercheUrl?: string; // Lien de recherche d'image optimisé Google
+  imageUrl?: string; // URL directe de l'image de la pièce (optionnel)
   // Compatibility helpers
   referencePiece?: string;
   quantiteInitiale?: number;
