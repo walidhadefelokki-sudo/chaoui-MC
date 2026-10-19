@@ -455,7 +455,7 @@ export default function StockSection({
                 <th className="px-5 py-3.5 text-center">Quantité</th>
                 <th className="px-5 py-3.5 text-right">Prix d'Achat</th>
                 <th className="px-5 py-3.5 text-right">Prix de Vente</th>
-                <th className="px-5 py-3.5 text-center">Lien Image Pièce</th>
+                <th className="px-5 py-3.5 text-center">Lien Image Généré</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
@@ -534,22 +534,23 @@ export default function StockSection({
                     {/* 7. Lien Image Pièce Généré Automatiquement */}
                     <td className="px-5 py-4 text-center">
                       {item.smartUrl ? (
-                        <div className="inline-flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-300 rounded-lg p-1 transition-all">
+                        <div className="inline-flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-300 rounded-xl px-2.5 py-1.5 transition-all shadow-2xs">
                           <a
                             href={item.smartUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-amber-950 hover:text-amber-800 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs font-black text-amber-950 hover:text-amber-800 transition-colors"
                             title={`Rechercher l'image de "${item.nom}" (Réf: ${item.ref}) sur Google Images`}
                           >
                             <Search className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Voir Pièce ↗</span>
+                            <span>Voir l'image ↗</span>
                           </a>
+                          <div className="w-px h-3.5 bg-amber-300" />
                           <button
                             type="button"
                             onClick={() => handleCopyLink(item.smartUrl, item.id)}
-                            className="p-1 text-slate-500 hover:text-slate-900 rounded hover:bg-white/80 transition-colors cursor-pointer"
-                            title="Copier le lien direct Google"
+                            className="p-0.5 text-slate-500 hover:text-slate-900 rounded transition-colors cursor-pointer"
+                            title="Copier le lien direct Google Images"
                           >
                             {copiedId === item.id ? (
                               <Check className="w-3.5 h-3.5 text-emerald-600" />

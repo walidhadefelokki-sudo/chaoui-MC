@@ -66,7 +66,6 @@ export default function StockHistorySection({
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [movementToDelete, setMovementToDelete] = useState<UnifiedHistoryItem | null>(null);
-  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
   // Form states for adding movement
   const [formType, setFormType] = useState<'ENTREE' | 'SORTIE'>('ENTREE');
@@ -336,25 +335,6 @@ export default function StockHistorySection({
     setMovementToDelete(null);
   };
 
-  // Handle clearing all movements
-  const handleConfirmClearAll = () => {
-    if (onClearMovements) {
-      onClearMovements();
-    }
-
-    setDeletedUnifiedIds(prev => {
-      const next = new Set(prev);
-      unifiedHistory.forEach(item => next.add(item.id));
-      try {
-        localStorage.setItem('chaoui_deleted_history_ids', JSON.stringify(Array.from(next)));
-      } catch (err) {
-        console.error("Failed to clear history IDs:", err);
-      }
-      return next;
-    });
-
-    setIsClearModalOpen(false);
-  };
 
   return (
     <div id="stock-history-section" className="space-y-6 animate-in fade-in duration-200">
@@ -377,18 +357,6 @@ export default function StockHistorySection({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-            {/* Clear History Button */}
-            {unifiedHistory.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setIsClearModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-red-950/80 border border-slate-700 hover:border-red-600 text-slate-300 hover:text-red-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                title="Vider tout le journal des mouvements"
-              >
-                <Trash2 className="w-4 h-4 text-red-400" />
-                Vider l'historique
-              </button>
-            )}
 
             {/* Add Movement Button */}
             <button
@@ -917,45 +885,7 @@ export default function StockHistorySection({
         </div>
       )}
 
-      {/* Confirmation Modal: Clear Entire History */}
-      {isClearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-200 text-left space-y-4">
-            <div className="flex items-center gap-3 text-red-600">
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-black uppercase text-slate-900">Vider tout l'historique</h3>
-                <p className="text-xs text-slate-500">Réinitialisation du journal des mouvements</p>
-              </div>
-            </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Voulez-vous vraiment effacer l'ensemble de l'historique des entrées et sorties ({unifiedHistory.length} mouvements) ?
-              <br /><br />
-              <strong>Remarque :</strong> Les articles actuels de votre stock, vos fournisseurs et vos clients restent inchangés. Seul le journal de traçabilité sera remis à zéro.
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsClearModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmClearAll}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer"
-              >
-                Vider Tout l'Historique
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

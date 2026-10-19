@@ -163,15 +163,35 @@ export default function ClientFormModal({
       const updated = [...prev];
       const item = { ...updated[index], [field]: value };
 
-      if (field === 'prixBase' || field === 'tauxRemise' || field === 'remise') {
+      if (field === 'prixBase' || field === 'prixApresRemise' || field === 'remise') {
         const base = field === 'prixBase' ? Math.max(0, parseFloat(value) || 0) : item.prixBase;
         const isRemise = field === 'remise' ? Boolean(value) : item.remise;
-        const rate = field === 'tauxRemise' ? Math.max(0, Math.min(100, parseFloat(value) || 0)) : item.tauxRemise;
 
-        if (isRemise && rate > 0) {
-          item.prixApresRemise = Math.round(base * (1 - rate / 100));
-        } else {
-          item.prixApresRemise = base;
+        if (field === 'prixBase') {
+          item.prixBase = base;
+          if (!isRemise || !item.prixApresRemise) {
+            item.prixApresRemise = base;
+          }
+        }
+
+        if (field === 'remise') {
+          item.remise = isRemise;
+          if (!isRemise) {
+            item.prixApresRemise = item.prixBase;
+            item.tauxRemise = 0;
+          } else {
+            if (!item.prixApresRemise || item.prixApresRemise === 0) {
+              item.prixApresRemise = item.prixBase;
+            }
+          }
+        }
+
+        if (field === 'prixApresRemise') {
+          const discounted = Math.max(0, parseFloat(value) || 0);
+          item.prixApresRemise = discounted;
+          if (item.prixBase > 0) {
+            item.tauxRemise = Math.max(0, Math.round(((item.prixBase - discounted) / item.prixBase) * 100));
+          }
         }
       }
 
@@ -182,9 +202,7 @@ export default function ClientFormModal({
           const suggestedPrice = matched.prixVente || matched.prixUnitaireMoyen || 0;
           if (suggestedPrice > 0 && item.prixBase === 0) {
             item.prixBase = suggestedPrice;
-            item.prixApresRemise = item.remise && item.tauxRemise > 0 
-              ? Math.round(suggestedPrice * (1 - item.tauxRemise / 100))
-              : suggestedPrice;
+            item.prixApresRemise = suggestedPrice;
           }
         }
       }
@@ -510,47 +528,65 @@ export default function ClientFormModal({
                           </div>
 
                           <div className="sm:col-span-4 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-500 uppercase block">Prix Unitaire (DA)</label>
+                            <label className="text-[9px] font-bold text-slate-500 uppercase block">Prix Unitaire Brut (DA)</label>
                             <input
-                              type="number"
-                              min="0"
+                              type="text"
+                              inputMode="decimal"
                               value={prod.prixBase || ''}
-                              onChange={(e) => handleProductChange(index, 'prixBase', Math.max(0, parseFloat(e.target.value) || 0))}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                handleProductChange(index, 'prixBase', parseFloat(val) || 0);
+                              }}
                               placeholder="0"
                               className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-xs font-mono font-bold focus:border-amber-500 focus:outline-hidden"
                             />
                           </div>
                         </div>
 
-                        {/* Remise controls */}
-                        <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-slate-200/60 text-xs">
-                          <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-bold text-[11px]">
+                        {/* Remise controls - Write new amount directly, without percentage */}
+                        <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-slate-200/60 text-xs">
+                          <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-bold text-[11px] select-none">
                             <input
                               type="checkbox"
                               checked={prod.remise}
-                              onChange={(e) => handleProductChange(index, 'remise', e.target.checked)}
-                              className="w-3.5 h-3.5 text-amber-500 rounded border-slate-300"
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                handleProductChange(index, 'remise', checked);
+                                if (checked && (!prod.prixApresRemise || prod.prixApresRemise === prod.prixBase)) {
+                                  handleProductChange(index, 'prixApresRemise', prod.prixBase);
+                                }
+                              }}
+                              className="w-4 h-4 text-amber-500 rounded border-slate-300 cursor-pointer"
                             />
-                            Appliquer une remise
+                            <span className="font-extrabold text-slate-800">Appliquer une remise</span>
                           </label>
 
                           {prod.remise && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-500 font-bold">Taux :</span>
+                            <div className="flex flex-wrap items-center gap-2 bg-emerald-50/80 border border-emerald-300 px-3 py-1.5 rounded-xl">
+                              <span className="text-[11px] text-emerald-950 font-black">Nouveau Montant (DA) :</span>
                               <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={prod.tauxRemise}
-                                onChange={(e) => handleProductChange(index, 'tauxRemise', Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
-                                className="w-16 px-2 py-1 bg-white border border-slate-300 rounded text-xs font-mono font-bold"
+                                type="text"
+                                inputMode="decimal"
+                                value={prod.prixApresRemise ?? prod.prixBase ?? ''}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                                  handleProductChange(index, 'prixApresRemise', parseFloat(val) || 0);
+                                }}
+                                placeholder="Écrire le nouveau montant"
+                                className="w-36 px-2.5 py-1 bg-white border border-emerald-400 rounded-lg text-xs font-mono font-black text-emerald-950 focus:ring-2 focus:ring-emerald-500/20 focus:outline-hidden shadow-2xs"
                               />
-                              <span className="text-[11px] font-bold text-slate-600">%</span>
+                              {prod.prixBase > (prod.prixApresRemise || 0) && (
+                                <span className="text-[10px] font-black text-emerald-700 font-mono">
+                                  (-{new Intl.NumberFormat('fr-DZ', { maximumFractionDigits: 0 }).format(prod.prixBase - (prod.prixApresRemise || 0))} DA)
+                                </span>
+                              )}
                             </div>
                           )}
 
                           <div className="ml-auto font-mono text-xs text-slate-600">
-                            Sous-total : <strong className="text-slate-900">{new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD', maximumFractionDigits: 0 }).format((prod.prixApresRemise || 0) * (prod.quantite || 0))}</strong>
+                            Sous-total : <strong className="text-slate-900">{new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD', maximumFractionDigits: 0 }).format((prod.remise ? (prod.prixApresRemise || 0) : (prod.prixBase || 0)) * (prod.quantite || 0))}</strong>
                           </div>
                         </div>
                       </div>

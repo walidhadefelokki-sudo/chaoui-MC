@@ -9,8 +9,8 @@ import {
   getClients, saveClient, deleteClient, 
   getSuppliers, saveSupplier, deleteSupplier,
   getStockItems, saveStockItem, deleteStockItem,
-  getStockMovements, saveStockMovement, deleteStockMovement, clearStockMovements,
-  clearAllData
+  getStockMovements, saveStockMovement, deleteStockMovement,
+  clearStockMovements, clearAllData
 } from './lib/db';
 import { SEED_CLIENTS, SEED_SUPPLIERS, SEED_STOCK } from './lib/seedData';
 import DashboardStats from './components/DashboardStats';
@@ -22,8 +22,7 @@ import UserProfileModal from './components/UserProfileModal';
 import LoginScreen from './components/LoginScreen';
 import { GearMaxLogo } from './components/GearMaxLogo';
 import { ChaouiLogo } from './components/ChaouiLogo';
-import { Truck, ShieldAlert, ShoppingBag, Users, LogOut, Shield, Boxes, User as UserIcon, History, Trash2 } from 'lucide-react';
-import ResetDatabaseModal from './components/ResetDatabaseModal';
+import { Truck, ShieldAlert, ShoppingBag, Users, LogOut, Shield, Boxes, User as UserIcon, History } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'clients' | 'suppliers' | 'stock' | 'history'>('clients');
@@ -36,9 +35,6 @@ export default function App() {
 
   // User Profile Modal State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  // Reset All Data Modal State
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
 
   // User Session State: Admin name must be Islam Chaoui
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -126,48 +122,7 @@ export default function App() {
     loadData();
   }, []);
 
-  // Reset/Empty all data handler
-  const handleResetAllData = async () => {
-    try {
-      await clearAllData();
-      localStorage.setItem('chaoui_database_cleared', 'true');
-      localStorage.removeItem('chaoui_proforma_invoices');
-      localStorage.removeItem('chaoui_deleted_history_ids');
 
-      setClients([]);
-      setSuppliers([]);
-      setStockItems([]);
-      setMovements([]);
-
-      setResetSuccessMessage("Toutes les données du logiciel ont été supprimées avec succès. Le système est maintenant vierge avec tous les compteurs à 0.");
-      setTimeout(() => setResetSuccessMessage(null), 5000);
-    } catch (err) {
-      console.error("Failed to reset database:", err);
-    }
-  };
-
-  // Restore zeroed catalog
-  const handleRestoreDemoData = async () => {
-    try {
-      setIsLoading(true);
-      await clearAllData();
-      localStorage.removeItem('chaoui_deleted_history_ids');
-      for (const stockItem of SEED_STOCK) {
-        await saveStockItem(stockItem);
-      }
-
-      setClients([]);
-      setSuppliers([]);
-      setStockItems(SEED_STOCK);
-      setMovements([]);
-      setResetSuccessMessage("Le catalogue avec toutes les valeurs à 0 a été réinitialisé.");
-      setTimeout(() => setResetSuccessMessage(null), 5000);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Customer Actions
   const handleAddClient = async (newClient: Client) => {
@@ -464,26 +419,6 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 w-full px-6 sm:px-8 lg:px-12 py-6">
         
-        {resetSuccessMessage && (
-          <div className="mb-4 bg-emerald-50 border border-emerald-300 rounded-xl p-4 flex items-center justify-between gap-3 text-emerald-900 shadow-xs animate-in fade-in duration-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                <Trash2 className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-emerald-950">Mise à jour effectuée</p>
-                <p className="text-xs text-emerald-800 font-medium">{resetSuccessMessage}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleRestoreDemoData}
-              className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline px-3 py-1.5 rounded-lg hover:bg-emerald-100/60 transition-colors cursor-pointer shrink-0"
-            >
-              Réinitialiser
-            </button>
-          </div>
-        )}
 
         {dbError && (
           <div className="mb-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
@@ -588,20 +523,8 @@ export default function App() {
           clients={clients}
           suppliers={suppliers}
           stockItems={stockItems}
-          onRequestResetDatabase={() => setIsResetModalOpen(true)}
         />
       )}
-
-      {/* Confirmation Modal to Empty / Purge Database */}
-      <ResetDatabaseModal
-        isOpen={isResetModalOpen}
-        onClose={() => setIsResetModalOpen(false)}
-        onConfirmReset={handleResetAllData}
-        clientCount={clients.length}
-        supplierCount={suppliers.length}
-        stockCount={stockItems.length}
-        movementCount={movements.length}
-      />
 
     </div>
   );

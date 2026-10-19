@@ -64,15 +64,35 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
         const updated = { ...p, [field]: value };
 
         // Auto calculate discounted price
-        if (field === 'prixBase' || field === 'tauxRemise' || field === 'remise') {
+        if (field === 'prixBase' || field === 'prixApresRemise' || field === 'remise') {
           const pb = field === 'prixBase' ? Math.max(0, parseFloat(value) || 0) : p.prixBase;
           const isRem = field === 'remise' ? Boolean(value) : p.remise;
-          const tr = field === 'tauxRemise' ? Math.max(0, Math.min(100, parseFloat(value) || 0)) : p.tauxRemise;
           
-          if (isRem && tr > 0) {
-            updated.prixApresRemise = Math.round(pb * (1 - tr / 100));
-          } else {
-            updated.prixApresRemise = pb;
+          if (field === 'prixBase') {
+            updated.prixBase = pb;
+            if (!isRem || !updated.prixApresRemise) {
+              updated.prixApresRemise = pb;
+            }
+          }
+
+          if (field === 'remise') {
+            updated.remise = isRem;
+            if (!isRem) {
+              updated.prixApresRemise = updated.prixBase;
+              updated.tauxRemise = 0;
+            } else {
+              if (!updated.prixApresRemise || updated.prixApresRemise === 0) {
+                updated.prixApresRemise = updated.prixBase;
+              }
+            }
+          }
+
+          if (field === 'prixApresRemise') {
+            const par = Math.max(0, parseFloat(value) || 0);
+            updated.prixApresRemise = par;
+            if (updated.prixBase > 0) {
+              updated.tauxRemise = Math.max(0, Math.round(((updated.prixBase - par) / updated.prixBase) * 100));
+            }
           }
         }
 
@@ -99,7 +119,7 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
 
   // Calculations
   const totalHT = produits.reduce((sum, item) => {
-    const unitPrice = item.remise && item.tauxRemise > 0 ? item.prixApresRemise : item.prixBase;
+    const unitPrice = item.remise ? (item.prixApresRemise || item.prixBase) : item.prixBase;
     return sum + (unitPrice * (item.quantite || 1));
   }, 0);
 
@@ -323,7 +343,7 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
 
             <div className="space-y-3">
               {produits.map((item, idx) => {
-                const effectiveUnitPrice = item.remise && item.tauxRemise > 0 ? item.prixApresRemise : item.prixBase;
+                const effectiveUnitPrice = item.remise ? (item.prixApresRemise || item.prixBase) : item.prixBase;
                 const lineTotal = effectiveUnitPrice * item.quantite;
 
                 return (
@@ -358,32 +378,78 @@ export default function ProformaFormModal({ onClose, onSave, stockItems = [] }: 
                       <div className="sm:col-span-2 space-y-1">
                         <label className="text-[9px] font-black text-slate-500 uppercase block">Quantité *</label>
                         <input
-                          type="number"
-                          min="1"
+                          type="text"
+                          inputMode="numeric"
                           required
                           value={item.quantite}
-                          onChange={(e) => handleProductChange(item.id, 'quantite', Math.max(1, parseInt(e.target.value) || 1))}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => handleProductChange(item.id, 'quantite', Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, '')) || 1))}
                           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-xs font-mono font-bold"
                         />
                       </div>
 
                       <div className="sm:col-span-4 space-y-1">
-                        <label className="text-[9px] font-black text-slate-500 uppercase block">Prix Unitaire HT (DA) *</label>
+                        <label className="text-[9px] font-black text-slate-500 uppercase block">Prix Unitaire HT Brut (DA) *</label>
                         <input
-                          type="number"
-                          min="0"
-                          step="100"
+                          type="text"
+                          inputMode="decimal"
                           required
                           value={item.prixBase || ''}
-                          onChange={(e) => handleProductChange(item.id, 'prixBase', Math.max(0, parseFloat(e.target.value) || 0))}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            handleProductChange(item.id, 'prixBase', parseFloat(val) || 0);
+                          }}
                           placeholder="0"
                           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-xs font-mono font-bold"
                         />
                       </div>
                     </div>
 
-                    <div className="flex justify-end text-[11px] font-mono pt-1 text-slate-600">
-                      Montant Ligne HT: <strong className="ml-1 text-blue-900">{formatCurrency(lineTotal)}</strong>
+                    {/* Remise controls for Proforma - Direct rewritten price */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-slate-150 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-bold text-[11px] select-none">
+                        <input
+                          type="checkbox"
+                          checked={item.remise}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            handleProductChange(item.id, 'remise', checked);
+                            if (checked && (!item.prixApresRemise || item.prixApresRemise === item.prixBase)) {
+                              handleProductChange(item.id, 'prixApresRemise', item.prixBase);
+                            }
+                          }}
+                          className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 cursor-pointer"
+                        />
+                        <span className="font-extrabold text-slate-800">Appliquer une remise</span>
+                      </label>
+
+                      {item.remise && (
+                        <div className="flex flex-wrap items-center gap-2 bg-emerald-50/80 border border-emerald-300 px-2.5 py-1 rounded-xl">
+                          <span className="text-[10px] text-emerald-950 font-black">Nouveau Montant (DA) :</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={item.prixApresRemise ?? item.prixBase ?? ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9.]/g, '');
+                              handleProductChange(item.id, 'prixApresRemise', parseFloat(val) || 0);
+                            }}
+                            placeholder="Nouveau montant"
+                            className="w-32 px-2 py-0.5 bg-white border border-emerald-400 rounded-lg text-xs font-mono font-black text-emerald-950 focus:ring-2 focus:ring-emerald-500/20 focus:outline-hidden"
+                          />
+                          {item.prixBase > (item.prixApresRemise || 0) && (
+                            <span className="text-[10px] font-black text-emerald-700 font-mono">
+                              (-{formatCurrency(item.prixBase - (item.prixApresRemise || 0))})
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="ml-auto font-mono text-xs text-slate-600">
+                        Montant Ligne HT: <strong className="ml-1 text-blue-900">{formatCurrency(lineTotal)}</strong>
+                      </div>
                     </div>
                   </div>
                 );

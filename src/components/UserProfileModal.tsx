@@ -14,7 +14,6 @@ interface UserProfileModalProps {
   clients: Client[];
   suppliers: Supplier[];
   stockItems: StockItem[];
-  onRequestResetDatabase?: () => void;
 }
 
 export default function UserProfileModal({
@@ -24,8 +23,7 @@ export default function UserProfileModal({
   onLogout,
   clients,
   suppliers,
-  stockItems,
-  onRequestResetDatabase
+  stockItems
 }: UserProfileModalProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'accounts' | 'actions'>('profile');
 

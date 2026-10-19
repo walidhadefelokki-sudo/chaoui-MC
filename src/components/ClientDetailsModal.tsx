@@ -250,7 +250,11 @@ export default function ClientDetailsModal({ client, onClose, onEdit, onViewFile
                             {client.remise ? 'OUI' : 'NON'}
                           </span>
                           {client.remise && (
-                            <span className="text-xs font-black text-emerald-600 font-mono">-{client.tauxRemise}%</span>
+                            <span className="text-[11px] font-black text-emerald-700 font-mono">
+                              {client.prixBase > (client.prixApresRemise || 0)
+                                ? `(-${formatCurrency(client.prixBase - (client.prixApresRemise || 0))})`
+                                : 'Montant réécrit'}
+                            </span>
                           )}
                         </div>
                       </div>
