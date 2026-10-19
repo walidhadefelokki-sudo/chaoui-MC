@@ -9,7 +9,7 @@ import {
   getClients, saveClient, deleteClient, 
   getSuppliers, saveSupplier, deleteSupplier,
   getStockItems, saveStockItem, deleteStockItem,
-  getStockMovements, saveStockMovement,
+  getStockMovements, saveStockMovement, deleteStockMovement, clearStockMovements,
   clearAllData
 } from './lib/db';
 import { SEED_CLIENTS, SEED_SUPPLIERS, SEED_STOCK } from './lib/seedData';
@@ -134,6 +134,7 @@ export default function App() {
       await clearAllData();
       localStorage.setItem('chaoui_database_cleared', 'true');
       localStorage.removeItem('chaoui_proforma_invoices');
+      localStorage.removeItem('chaoui_deleted_history_ids');
 
       setClients([]);
       setSuppliers([]);
@@ -144,7 +145,6 @@ export default function App() {
       setTimeout(() => setResetSuccessMessage(null), 5000);
     } catch (err) {
       console.error("Failed to reset database:", err);
-      alert("Erreur lors de la suppression des données. Veuillez réessayer.");
     }
   };
 
@@ -153,6 +153,7 @@ export default function App() {
     try {
       setIsLoading(true);
       await clearAllData();
+      localStorage.removeItem('chaoui_deleted_history_ids');
       for (const stockItem of SEED_STOCK) {
         await saveStockItem(stockItem);
       }
@@ -165,7 +166,6 @@ export default function App() {
       setTimeout(() => setResetSuccessMessage(null), 5000);
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de la réinitialisation.");
     } finally {
       setIsLoading(false);
     }
@@ -178,7 +178,6 @@ export default function App() {
       setClients(prev => [newClient, ...prev]);
     } catch (err) {
       console.error("Failed to add client:", err);
-      alert("Erreur lors de l'enregistrement du client.");
     }
   };
 
@@ -188,21 +187,15 @@ export default function App() {
       setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
     } catch (err) {
       console.error("Failed to edit client:", err);
-      alert("Erreur lors de la modification du client.");
     }
   };
 
   const handleDeleteClient = async (id: string) => {
-    if (currentUser?.role !== 'admin') {
-      alert("⚠️ Action Refusée : En tant que Responsable Commercial, vous n'êtes pas autorisé à supprimer les dossiers de vente. Veuillez contacter l'administrateur Islam Chaoui.");
-      return;
-    }
     try {
       await deleteClient(id);
       setClients(prev => prev.filter(c => c.id !== id));
     } catch (err) {
       console.error("Failed to delete client:", err);
-      alert("Erreur lors de la suppression du client.");
     }
   };
 
@@ -272,16 +265,11 @@ export default function App() {
   };
 
   const handleDeleteSupplier = async (id: string) => {
-    if (currentUser?.role !== 'admin') {
-      alert("⚠️ Action Refusée : En tant que Responsable Commercial, vous n'êtes pas autorisé à supprimer les dossiers d'achat. Veuillez contacter l'administrateur Islam Chaoui.");
-      return;
-    }
     try {
       await deleteSupplier(id);
       setSuppliers(prev => prev.filter(s => s.id !== id));
     } catch (err) {
       console.error("Failed to delete supplier:", err);
-      alert("Erreur lors de la suppression de l'achat.");
     }
   };
 
@@ -295,7 +283,6 @@ export default function App() {
       }
     } catch (err) {
       console.error("Failed to toggle delivery status:", err);
-      alert("Erreur lors de la mise à jour de la livraison.");
     }
   };
 
@@ -306,7 +293,6 @@ export default function App() {
       setStockItems(prev => [newStockItem, ...prev]);
     } catch (err) {
       console.error("Failed to add stock item:", err);
-      alert("Erreur lors de l'enregistrement de l'article de stock.");
     }
   };
 
@@ -316,21 +302,15 @@ export default function App() {
       setStockItems(prev => prev.map(item => item.id === updatedStockItem.id ? updatedStockItem : item));
     } catch (err) {
       console.error("Failed to edit stock item:", err);
-      alert("Erreur lors de la mise à jour de l'article de stock.");
     }
   };
 
   const handleDeleteStockItem = async (id: string) => {
-    if (currentUser?.role !== 'admin') {
-      alert("⚠️ Action Refusée : Seul l'administrateur principal peut supprimer des articles de stock.");
-      return;
-    }
     try {
       await deleteStockItem(id);
       setStockItems(prev => prev.filter(item => item.id !== id));
     } catch (err) {
       console.error("Failed to delete stock item:", err);
-      alert("Erreur lors de la suppression de l'article de stock.");
     }
   };
 
@@ -341,6 +321,24 @@ export default function App() {
       setMovements(prev => [movement, ...prev]);
     } catch (err) {
       console.error("Failed to save stock movement:", err);
+    }
+  };
+
+  const handleDeleteMovement = async (id: string) => {
+    try {
+      await deleteStockMovement(id);
+      setMovements(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      console.error("Failed to delete stock movement:", err);
+    }
+  };
+
+  const handleClearMovements = async () => {
+    try {
+      await clearStockMovements();
+      setMovements([]);
+    } catch (err) {
+      console.error("Failed to clear stock movements:", err);
     }
   };
 
@@ -566,7 +564,12 @@ export default function App() {
                   movements={movements}
                   suppliers={suppliers}
                   clients={clients}
+                  stockItems={stockItems}
                   currentUser={currentUser}
+                  onAddStockMovement={handleAddStockMovement}
+                  onEditStockItem={handleEditStockItem}
+                  onDeleteMovement={handleDeleteMovement}
+                  onClearMovements={handleClearMovements}
                 />
               )}
             </div>

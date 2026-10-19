@@ -58,6 +58,7 @@ export default function StockSection({
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
 
   // Stock Exit Modal state
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
@@ -248,6 +249,21 @@ export default function StockSection({
       onEditStockItem(savedItem);
     } else {
       onAddStockItem(savedItem);
+      if (formQuantite > 0 && onAddStockMovement) {
+        onAddStockMovement({
+          id: crypto.randomUUID(),
+          typeMouvement: 'ENTREE',
+          date: new Date().toISOString(),
+          produit: savedItem.nom,
+          quantite: formQuantite,
+          unite: 'Unités',
+          typeArticle: 'matiere_premiere',
+          nomUtilisateur: currentUser?.fullName || 'Islam Chaoui',
+          tierNom: savedItem.marque || 'Fournisseur Initial',
+          motif: 'Entrée initiale - Création article',
+          createdAt: new Date().toISOString()
+        });
+      }
     }
     setIsModalOpen(false);
   };
@@ -480,7 +496,7 @@ export default function StockSection({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onDeleteStockItem(item.id)}
+                          onClick={() => setItemToDelete(item)}
                           className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                           title="Supprimer l'article"
                         >
@@ -657,6 +673,50 @@ export default function StockSection({
           currentUser={currentUser || null}
           onConfirmExit={handleBatchConfirmExit}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-red-200 text-left space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-black uppercase text-slate-900">Confirmer la suppression</h3>
+                <p className="text-xs text-slate-500">Suppression définitive de la référence</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1">
+              <p className="font-bold text-slate-900">{itemToDelete.nom}</p>
+              <p className="text-slate-600 font-mono">Réf: {itemToDelete.reference || itemToDelete.referencePiece || '-'}</p>
+              <p className="text-slate-600">Marque: <span className="font-bold">{itemToDelete.marque}</span> | En stock: <span className="font-bold font-mono">{itemToDelete.quantite ?? 0}</span></p>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Êtes-vous sûr de vouloir supprimer définitivement cet article du stock ? Cette action ne peut pas être annulée.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteStockItem(itemToDelete.id);
+                  setItemToDelete(null);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer"
+              >
+                Supprimer Définitivement
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

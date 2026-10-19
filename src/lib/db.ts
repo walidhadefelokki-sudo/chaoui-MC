@@ -258,3 +258,21 @@ export async function deleteStockMovement(id: string): Promise<void> {
     };
   });
 }
+
+export async function clearStockMovements(): Promise<void> {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_MOVEMENTS, 'readwrite');
+    const store = transaction.objectStore(STORE_MOVEMENTS);
+    const request = store.clear();
+
+    request.onsuccess = () => {
+      resolve();
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+
